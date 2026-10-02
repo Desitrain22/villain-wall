@@ -108,7 +108,7 @@ body.dragging #drop{display:flex}
   ORDER.forEach((screen, i) => {
     const el = document.createElement('section');
     el.className = 'panel'; el.dataset.screen = screen;
-    el.innerHTML = `<div class="fallback"></div><video muted autoplay loop playsinline preload="auto"></video><div class="tint"></div><div class="bubbles"></div>` +
+    el.innerHTML = `<div class="fallback"></div><video muted autoplay loop playsinline preload="auto" disablepictureinpicture disableremoteplayback controlslist="nodownload nofullscreen noremoteplayback"></video><div class="tint"></div><div class="bubbles"></div>` +
       `<div class="label"><b>${screen}</b><span>${NAMES[screen] || ''}</span><small>layout: ${LAYOUT} · panel ${i + 1} of ${ORDER.length}</small></div>`;
     wall.appendChild(el);
     const p = { screen, el, video: el.querySelector('video'), bubblesEl: el.querySelector('.bubbles'), w: 1, h: 1, bubbles: [] };
