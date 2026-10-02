@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a0014">
+<title>Confess · Villain Wall</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik+Glitch&family=Nunito:wght@600;800&display=swap" rel="stylesheet">
+<style>
+:root{color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;min-height:100svh;background:radial-gradient(circle at 20% 10%,#2a0050 0,#0a0014 45%,#000 100%);color:#fff;font-family:Nunito,system-ui,sans-serif;display:flex;justify-content:center;padding:24px 16px 48px}
+main{width:100%;max-width:440px}
+h1{font-family:'Rubik Glitch',Nunito,sans-serif;font-weight:400;font-size:46px;margin:8px 0 2px;color:#39ff14;text-shadow:0 0 18px rgba(57,255,20,.6);letter-spacing:.02em;line-height:1}
+.sub{color:#c9b3ff;margin:0 0 20px;font-weight:600}
+.lbl{display:block;font-weight:800;margin:18px 0 8px;font-size:16px;color:#e9ddff}
+input[type=text],textarea{width:100%;font:inherit;font-size:17px;font-weight:600;color:#fff;background:rgba(255,255,255,.07);border:2px solid rgba(176,38,255,.5);border-radius:14px;padding:14px;outline:none;-webkit-appearance:none}
+input[type=text]:focus,textarea:focus{border-color:#39ff14;box-shadow:0 0 0 4px rgba(57,255,20,.15)}
+textarea{min-height:120px;resize:vertical}
+.count{text-align:right;font-size:12px;color:#9a8ab8;margin-top:4px;font-weight:800}
+.screens{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.screens label{display:block}
+.screens input{position:absolute;opacity:0;pointer-events:none}
+.screens span{display:flex;flex-direction:column;align-items:center;gap:2px;padding:14px 6px;border-radius:14px;border:2px solid rgba(176,38,255,.5);background:rgba(255,255,255,.05);cursor:pointer;font-weight:800;text-align:center}
+.screens b{font-size:28px;font-family:'Rubik Glitch',Nunito,sans-serif;font-weight:400;color:#b026ff;line-height:1}
+.screens small{font-size:12px;color:#bbb;font-weight:600}
+.screens input:checked + span{border-color:#39ff14;background:rgba(57,255,20,.12);box-shadow:0 0 16px rgba(57,255,20,.35)}
+.screens input:checked + span b{color:#39ff14}
+button{width:100%;margin-top:24px;font:inherit;font-size:19px;font-weight:800;padding:16px;border:0;border-radius:16px;background:linear-gradient(135deg,#b026ff,#ff2a6d);color:#fff;cursor:pointer;box-shadow:0 8px 30px rgba(255,42,109,.35)}
+button:disabled{opacity:.6}
+.err{color:#ff6b8a;font-weight:800;margin-top:12px;min-height:1.2em;text-align:center}
+.done{display:none;text-align:center;padding:30px 10px}
+.done .big{font-size:84px;line-height:1}
+.done h2{font-family:'Rubik Glitch',Nunito,sans-serif;font-weight:400;font-size:36px;color:#39ff14;margin:14px 0 6px}
+.done p{color:#c9b3ff;font-weight:600;font-size:17px}
+.ghost{background:transparent;border:2px solid #b026ff;box-shadow:none}
+</style>
+</head>
+<body>
+<main>
+<form id="f" novalidate>
+  <h1>VILLAIN WALL</h1>
+  <p class="sub">Confess. It'll dance on the big screens.</p>
+  <label class="lbl" for="name">Name:</label>
+  <input type="text" id="name" name="name" maxlength="40" autocomplete="nickname" placeholder="Your villain name" required>
+  <label class="lbl" for="text">What's your most evil thing you did all year?</label>
+  <textarea id="text" name="text" maxlength="180" placeholder="Go on. We won't tell." required></textarea>
+  <div class="count"><span id="cnt">0</span>/180</div>
+  <span class="lbl">Which screen should your evil dance on?</span>
+  <div class="screens">
+    <label><input type="radio" name="screen" value="A"><span><b>A</b><small>Left</small></span></label>
+    <label><input type="radio" name="screen" value="B" checked><span><b>B</b><small>Center</small></span></label>
+    <label><input type="radio" name="screen" value="C"><span><b>C</b><small>Right</small></span></label>
+  </div>
+  <button id="go" type="submit">Confess 😈</button>
+  <div class="err" id="err"></div>
+</form>
+<section class="done" id="done">
+  <div class="big">😈</div>
+  <h2>IT'S OUT THERE</h2>
+  <p id="where">Your confession is now dancing on Screen B.</p>
+  <button class="ghost" id="again" type="button">Confess something worse</button>
+</section>
+</main>
+<script>
+(() => {
+  const f = document.getElementById('f'), name = document.getElementById('name'), text = document.getElementById('text');
+  const cnt = document.getElementById('cnt'), err = document.getElementById('err'), go = document.getElementById('go');
+  const done = document.getElementById('done'), where = document.getElementById('where');
+  try { name.value = localStorage.getItem('vw-name') || ''; } catch {}
+  text.addEventListener('input', () => cnt.textContent = text.value.length);
+  const SCREENS = { A: 'A (left)', B: 'B (center)', C: 'C (right)' };
+  f.addEventListener('submit', async e => {
+    e.preventDefault(); err.textContent = '';
+    const n = name.value.trim(), t = text.value.trim();
+    const screen = (f.querySelector('input[name=screen]:checked') || {}).value || 'B';
+    if (!n) { err.textContent = 'Tell us who you are (or make up a name).'; name.focus(); return; }
+    if (t.length < 2) { err.textContent = 'Come on, confess something.'; text.focus(); return; }
+    go.disabled = true; go.textContent = 'Sending…';
+    try {
+      const r = await fetch('/api/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: n, text: t, screen }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
+      try { localStorage.setItem('vw-name', n); } catch {}
+      where.textContent = `Your confession is now dancing on Screen ${SCREENS[d.item.screen] || d.item.screen}.`;
+      f.style.display = 'none'; done.style.display = 'block'; window.scrollTo(0, 0);
+    } catch (e2) { err.textContent = e2.message || 'Something broke. Try again.'; }
+    go.disabled = false; go.textContent = 'Confess 😈';
+  });
+  document.getElementById('again').addEventListener('click', () => { text.value = ''; cnt.textContent = '0'; done.style.display = 'none'; f.style.display = 'block'; text.focus(); });
+})();
+</script>
+</body>
+</html>

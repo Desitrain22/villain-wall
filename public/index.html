@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Villain Wall</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik+Glitch&family=Nunito:wght@600;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:Nunito,system-ui,sans-serif;color:#fff}
+body.nocursor{cursor:none}
+#wall{position:fixed;inset:0;display:grid;gap:0;background:#000}
+#wall.grid{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr}
+#wall.row{grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr}
+#wall.single{grid-template-columns:1fr;grid-template-rows:1fr}
+.panel{position:relative;overflow:hidden;background:#05000d;--pw:960px;--ph:540px}
+.panel .fallback{position:absolute;inset:-20%;background:conic-gradient(from 0deg at 50% 50%,#1a0033,#3b0066,#001a0a,#2a0010,#1a0033);filter:blur(60px);animation:spin 40s linear infinite;opacity:.9}
+@keyframes spin{to{transform:rotate(360deg)}}
+.panel video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:transparent}
+.panel iframe.yt{position:absolute;border:0;pointer-events:none}
+.panel .tint{position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 60%,rgba(0,0,0,.35) 100%);pointer-events:none}
+.bubbles{position:absolute;inset:0;overflow:hidden;z-index:2}
+.bubble{position:absolute;left:0;top:0;will-change:transform;max-width:calc(var(--pw) * .40);padding:calc(var(--ph)*.014) calc(var(--ph)*.026);border-radius:calc(var(--ph)*.06);background:rgba(10,0,22,.66);border:calc(var(--ph)*.004) solid var(--c);box-shadow:0 0 calc(var(--ph)*.035) var(--c),inset 0 0 calc(var(--ph)*.02) rgba(255,255,255,.07);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);animation:pop .7s cubic-bezier(.2,1.6,.4,1) both;text-shadow:0 1px 4px #000}
+.bubble.out{animation:fade .6s ease forwards}
+.bubble .n{display:block;font-weight:800;color:var(--c);font-size:calc(var(--ph)*.026);letter-spacing:.05em;text-transform:uppercase;line-height:1.15}
+.bubble .t{display:block;font-weight:600;font-size:calc(var(--ph)*.036);line-height:1.15;overflow-wrap:anywhere}
+@keyframes pop{0%{opacity:0;scale:.2}100%{opacity:1;scale:1}}
+@keyframes fade{to{opacity:0;scale:.6}}
+.qrbox{position:absolute;z-index:5;background:#fff;color:#111;border-radius:calc(var(--ph)*.02);padding:calc(var(--ph)*.018) calc(var(--ph)*.022);display:flex;flex-direction:column;align-items:center;gap:calc(var(--ph)*.008);box-shadow:0 0 calc(var(--ph)*.06) rgba(176,38,255,.9),0 0 0 calc(var(--ph)*.006) #b026ff}
+.qrbox.br{right:calc(var(--pw)*.025);bottom:calc(var(--ph)*.045)}
+.qrbox.bl{left:calc(var(--pw)*.025);bottom:calc(var(--ph)*.045)}
+.qrbox.tr{right:calc(var(--pw)*.025);top:calc(var(--ph)*.045)}
+.qrbox.tl{left:calc(var(--pw)*.025);top:calc(var(--ph)*.045)}
+.qrbox.c{left:50%;top:50%;transform:translate(-50%,-50%)}
+.qrbox .h{font-family:'Rubik Glitch',Nunito,sans-serif;font-size:calc(var(--ph)*.042);color:#7a00e6;line-height:1;white-space:nowrap}
+.qrbox .s{font-weight:800;font-size:calc(var(--ph)*.021);color:#222;text-align:center;line-height:1.2}
+.qrbox svg{width:calc(var(--ph)*.27);height:calc(var(--ph)*.27);display:block}
+.qrbox .u{font-size:calc(var(--ph)*.019);color:#555;font-weight:800;letter-spacing:.02em;white-space:nowrap}
+.label{position:absolute;inset:0;z-index:9;display:none;align-items:center;justify-content:center;flex-direction:column;background:rgba(0,0,0,.6);font-weight:800;text-align:center}
+body.cal .label{display:flex}
+.label b{font-size:calc(var(--ph)*.5);line-height:1;font-family:'Rubik Glitch',Nunito,sans-serif;font-weight:400;color:#39ff14}
+.label span{font-size:calc(var(--ph)*.06);color:#fff}
+.label small{font-size:calc(var(--ph)*.035);color:#bbb;font-weight:600}
+#help{position:fixed;z-index:50;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(8,0,18,.94);border:2px solid #b026ff;border-radius:18px;padding:22px 28px;max-width:min(92vw,720px);font-size:15px;line-height:1.5;display:none;box-shadow:0 0 40px rgba(176,38,255,.6)}
+#help.show{display:block}
+#help h2{margin:0 0 10px;font-family:'Rubik Glitch',Nunito,sans-serif;font-weight:400;color:#39ff14;font-size:28px}
+#help kbd{display:inline-block;min-width:24px;text-align:center;padding:1px 7px;border-radius:6px;background:#2a0050;border:1px solid #b026ff;font-weight:800;margin-right:6px}
+#help code{color:#39ff14}
+#help .row{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;margin-top:8px}
+#status{position:fixed;z-index:60;right:8px;top:8px;font-size:12px;background:rgba(0,0,0,.6);padding:4px 8px;border-radius:8px;display:none;font-weight:800}
+#status.show{display:block}
+#status.err{color:#ff6b8a}
+#status.ok{color:#39ff14}
+#drop{position:fixed;inset:0;z-index:70;display:none;align-items:center;justify-content:center;background:rgba(57,255,20,.15);border:6px dashed #39ff14;font-size:40px;font-weight:800;pointer-events:none}
+body.dragging #drop{display:flex}
+</style>
+</head>
+<body>
+<div id="wall"></div>
+<div id="help">
+  <h2>VILLAIN WALL · controls</h2>
+  <div class="row">
+    <span><kbd>F</kbd></span><span>Toggle fullscreen</span>
+    <span><kbd>C</kbd></span><span>Calibration labels (shows which projector is A / B / C)</span>
+    <span><kbd>L</kbd></span><span>Cycle layout: <code>grid</code> (2x2 quadrants) → <code>row</code> (1x3) → <code>single</code></span>
+    <span><kbd>Q</kbd></span><span>QR on center only ↔ QR on all screens</span>
+    <span><kbd>V</kbd></span><span>Load a local video file (or drag &amp; drop one onto the page). Remembered on reload.</span>
+    <span><kbd>X</kbd></span><span>Forget local video, go back to the hosted default</span>
+    <span><kbd>D</kbd></span><span>Drop a demo bubble (not saved)</span>
+    <span><kbd>H</kbd> / <kbd>?</kbd></span><span>Show / hide this help</span>
+  </div>
+  <p style="margin:12px 0 0;color:#c9b3ff">URL params: <code>?layout=grid|row|single</code> <code>&amp;order=A,B,C,X</code> <code>&amp;screen=B</code> <code>&amp;qr=B|all</code> <code>&amp;qrpos=br|bl|tr|tl|c</code> <code>&amp;video=https://…mp4</code> <code>&amp;yt=1</code> (YouTube fallback) <code>&amp;max=24</code> <code>&amp;debug=1</code></p>
+  <p id="helpcfg" style="margin:8px 0 0;color:#9a8ab8;font-size:13px"></p>
+</div>
+<div id="status"></div>
+<div id="drop">Drop video to load it</div>
+<input type="file" id="file" accept="video/*" hidden>
+<script src="/qrcode.js"></script>
+<script src="/config.js"></script>
+<script>
+(() => {
+  const Q = new URLSearchParams(location.search);
+  const CFG = window.VILLAIN_CONFIG || {};
+  const get = (k, d) => Q.get(k) ?? (CFG[k] !== undefined && CFG[k] !== '' ? CFG[k] : d);
+  const LAYOUT = String(get('layout', 'grid')).toLowerCase();
+  const SCREEN = String(get('screen', 'B')).toUpperCase();
+  const defaultOrder = LAYOUT === 'row' ? 'A,B,C' : LAYOUT === 'single' ? SCREEN : 'A,B,C,X';
+  const ORDER = String(get('order', defaultOrder)).toUpperCase().split(',').map(s => s.trim()).filter(Boolean);
+  const QR_ON = String(get('qr', 'B')).toUpperCase().split(',').map(s => s.trim());
+  const QR_POS = String(get('qrpos', 'br'));
+  const MAX = Math.max(1, +get('max', 24) || 24);
+  const POLL = Math.max(800, +get('poll', 2500) || 2500);
+  const ROTATE = Math.max(3000, +get('rotate', 15000) || 15000);
+  const SPEED = +get('speed', 1) || 1;
+  const DEBUG = Q.get('debug') === '1';
+  const NAMES = { A: 'LEFT', B: 'CENTER', C: 'RIGHT', X: 'SPARE (video only)' };
+  const COLORS = ['#39ff14', '#b026ff', '#ff2a6d', '#00e5ff', '#ffd400', '#ff6a00', '#ff3cf0'];
+  const rand = (a, b) => a + Math.random() * (b - a);
+  const hash = s => { let h = 0; for (const ch of String(s)) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return h; };
+
+  // ---------- panels ----------
+  const wall = document.getElementById('wall');
+  wall.className = ['grid', 'row', 'single'].includes(LAYOUT) ? LAYOUT : 'grid';
+  if (LAYOUT === 'row' && ORDER.length !== 3) wall.style.gridTemplateColumns = `repeat(${ORDER.length},1fr)`;
+  const panels = [];
+  ORDER.forEach((screen, i) => {
+    const el = document.createElement('section');
+    el.className = 'panel'; el.dataset.screen = screen;
+    el.innerHTML = `<div class="fallback"></div><video muted autoplay loop playsinline preload="auto"></video><div class="tint"></div><div class="bubbles"></div>` +
+      `<div class="label"><b>${screen}</b><span>${NAMES[screen] || ''}</span><small>layout: ${LAYOUT} · panel ${i + 1} of ${ORDER.length}</small></div>`;
+    wall.appendChild(el);
+    const p = { screen, el, video: el.querySelector('video'), bubblesEl: el.querySelector('.bubbles'), w: 1, h: 1, bubbles: [] };
+    panels.push(p);
+    if (screen !== 'X' && (QR_ON.includes('ALL') || QR_ON.includes(screen))) addQR(p);
+  });
+  const ro = new ResizeObserver(entries => {
+    for (const e of entries) {
+      const p = panels.find(p => p.el === e.target); if (!p) continue;
+      p.w = e.contentRect.width; p.h = e.contentRect.height;
+      p.el.style.setProperty('--pw', p.w + 'px'); p.el.style.setProperty('--ph', p.h + 'px');
+      for (const b of p.bubbles) { b.w = b.el.offsetWidth; b.h = b.el.offsetHeight; }
+    }
+    fitYT();
+  });
+  panels.forEach(p => ro.observe(p.el));
+
+  function addQR(p) {
+    const box = document.createElement('div');
+    box.className = 'qrbox ' + QR_POS;
+    const url = location.origin + '/submit';
+    const qr = qrcode(0, 'M'); qr.addData(url); qr.make();
+    box.innerHTML = `<div class="h">SCAN TO CONFESS</div><div class="s">What's the most evil thing<br>you did all year?</div>` +
+      qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true }) + `<div class="u">${location.host}/submit</div>`;
+    p.el.appendChild(box);
+  }
+
+  // ---------- video ----------
+  function idb() { return new Promise((res, rej) => { const r = indexedDB.open('villain-wall', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); }
+  async function idbGet(k) { const db = await idb(); return new Promise((res, rej) => { const t = db.transaction('kv').objectStore('kv').get(k); t.onsuccess = () => res(t.result); t.onerror = () => rej(t.error); }); }
+  async function idbSet(k, v) { const db = await idb(); return new Promise((res, rej) => { const t = db.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, k); t.oncomplete = () => res(); t.onerror = () => rej(t.error); }); }
+  async function idbDel(k) { const db = await idb(); return new Promise((res, rej) => { const t = db.transaction('kv', 'readwrite'); t.objectStore('kv').delete(k); t.oncomplete = () => res(); t.onerror = () => rej(t.error); }); }
+
+  let videoSource = 'none';
+  const YT = Q.get('yt') ? (Q.get('yt') === '1' ? CFG.yt : Q.get('yt')) : '';
+  function useYouTube(id) {
+    videoSource = 'youtube ' + id;
+    for (const p of panels) {
+      const f = document.createElement('iframe');
+      f.className = 'yt'; f.setAttribute('allow', 'autoplay; encrypted-media'); f.setAttribute('frameborder', '0');
+      f.src = `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&loop=1&playlist=${id}&controls=0&modestbranding=1&playsinline=1&rel=0&iv_load_policy=3&disablekb=1&fs=0`;
+      p.video.replaceWith(f); p.video = null; p.yt = f;
+    }
+    fitYT(); updateHelp();
+  }
+  function fitYT() {
+    for (const p of panels) { if (!p.yt) continue; const w = Math.max(p.w, p.h * 16 / 9), h = w * 9 / 16;
+      Object.assign(p.yt.style, { width: w + 'px', height: h + 'px', left: (p.w - w) / 2 + 'px', top: (p.h - h) / 2 + 'px' }); }
+  }
+  function setVideo(src, label) {
+    videoSource = label;
+    for (const p of panels) { if (!p.video) continue; p.video.src = src; p.video.load(); p.video.play().catch(() => {}); }
+    updateHelp();
+  }
+  (async () => {
+    if (YT) return useYouTube(YT);
+    if (Q.get('video')) return setVideo(Q.get('video'), 'url param');
+    try { const f = await idbGet('video'); if (f) return setVideo(URL.createObjectURL(f), 'local file: ' + (f.name || 'video')); } catch {}
+    if (CFG.video && !CFG.video.startsWith('__')) return setVideo(CFG.video, 'hosted default');
+    updateHelp();
+  })();
+  function loadFile(f) { if (!f || !f.type.startsWith('video/')) return; idbSet('video', f).catch(() => {}); setVideo(URL.createObjectURL(f), 'local file: ' + f.name); }
+  document.getElementById('file').addEventListener('change', e => loadFile(e.target.files[0]));
+  addEventListener('dragover', e => { e.preventDefault(); document.body.classList.add('dragging'); });
+  addEventListener('dragleave', e => { if (e.relatedTarget === null) document.body.classList.remove('dragging'); });
+  addEventListener('drop', e => { e.preventDefault(); document.body.classList.remove('dragging'); loadFile(e.dataTransfer.files[0]); });
+  // keep the copies in lockstep so adjacent projectors match
+  setInterval(() => {
+    const m = panels[0]?.video; if (!m || m.readyState < 2) return;
+    for (const p of panels.slice(1)) {
+      const v = p.video; if (!v || v.readyState < 2) continue;
+      if (Math.abs(v.currentTime - m.currentTime) > 0.25) v.currentTime = m.currentTime;
+      if (v.paused && !m.paused) v.play().catch(() => {});
+    }
+  }, 3000);
+  const kick = () => panels.forEach(p => p.video && p.video.paused && p.video.src && p.video.play().catch(() => {}));
+  addEventListener('click', kick); addEventListener('keydown', kick);
+
+  // ---------- bubbles ----------
+  const allItems = new Map();
+  let lastTs = 0, first = true;
+  const panelsFor = s => panels.filter(p => p.screen === s);
+
+  function makeBubble(p, item) {
+    const el = document.createElement('div');
+    el.className = 'bubble';
+    el.style.setProperty('--c', COLORS[hash(item.id) % COLORS.length]);
+    const n = document.createElement('span'); n.className = 'n'; n.textContent = item.name;
+    const t = document.createElement('span'); t.className = 't'; t.textContent = '“' + item.text + '”';
+    el.append(n, t);
+    p.bubblesEl.appendChild(el);
+    const w = el.offsetWidth, h = el.offsetHeight;
+    const k = SPEED * (p.h / 540);
+    const b = { el, item, w, h,
+      x: rand(0, Math.max(1, p.w - w)), y: rand(0, Math.max(1, p.h - h)),
+      vx: rand(14, 34) * (Math.random() < .5 ? -1 : 1) * k,
+      vy: rand(10, 26) * (Math.random() < .5 ? -1 : 1) * k,
+      ph: Math.random() * Math.PI * 2, rot: rand(1.5, 4.5), bob: rand(.8, 1.6) };
+    el.style.transform = `translate3d(${b.x}px,${b.y}px,0)`;
+    p.bubbles.push(b);
+    item.lastShown = Date.now();
+    return b;
+  }
+  function removeBubble(p, b) {
+    const i = p.bubbles.indexOf(b); if (i >= 0) p.bubbles.splice(i, 1);
+    b.el.classList.add('out'); setTimeout(() => b.el.remove(), 700);
+  }
+  function show(item) {
+    for (const p of panelsFor(item.screen)) {
+      if (p.bubbles.length >= MAX) removeBubble(p, p.bubbles[0]);
+      makeBubble(p, item);
+    }
+  }
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(.05, (now - last) / 1000); last = now; const t = now / 1000;
+    for (const p of panels) for (const b of p.bubbles) {
+      b.x += b.vx * dt; b.y += b.vy * dt;
+      if (b.x < 0) { b.x = 0; b.vx = Math.abs(b.vx); } else if (b.x + b.w > p.w) { b.x = Math.max(0, p.w - b.w); b.vx = -Math.abs(b.vx); }
+      if (b.y < 0) { b.y = 0; b.vy = Math.abs(b.vy); } else if (b.y + b.h > p.h) { b.y = Math.max(0, p.h - b.h); b.vy = -Math.abs(b.vy); }
+      const bob = Math.sin(t * b.bob + b.ph) * p.h * .012;
+      const r = Math.sin(t * .9 + b.ph) * b.rot;
+      b.el.style.transform = `translate3d(${b.x}px,${b.y + bob}px,0) rotate(${r}deg)`;
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  const status = document.getElementById('status');
+  if (DEBUG) status.classList.add('show');
+  function setStatus(kind, msg) { status.className = 'show ' + kind; if (!DEBUG) status.classList.remove('show'); status.textContent = msg; }
+
+  async function poll() {
+    try {
+      const r = await fetch(`/api/list?since=${lastTs}`, { cache: 'no-store' });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const d = await r.json();
+      const live = new Set(d.ids || []);
+      for (const [id, item] of allItems) if (!item.demo && !live.has(id)) {
+        allItems.delete(id);
+        for (const p of panels) for (const b of [...p.bubbles]) if (b.item.id === id) removeBubble(p, b);
+      }
+      const fresh = (d.items || []).filter(i => !allItems.has(i.id)).sort((a, b) => a.ts - b.ts);
+      for (const i of fresh) { allItems.set(i.id, i); lastTs = Math.max(lastTs, i.ts); }
+      if (first) {
+        // only the newest MAX per screen on first paint; the rest rotate in later
+        for (const s of ['A', 'B', 'C']) fresh.filter(i => i.screen === s).slice(-MAX).forEach(show);
+        first = false;
+      } else fresh.forEach(show);
+      setStatus('ok', `${allItems.size} confessions · ${new Date().toLocaleTimeString()}`);
+    } catch (e) { setStatus('err', 'offline: ' + e.message); }
+    setTimeout(poll, POLL);
+  }
+  poll();
+
+  setInterval(() => {
+    for (const p of panels) {
+      const mine = [...allItems.values()].filter(i => i.screen === p.screen);
+      if (!mine.length || mine.length <= p.bubbles.length) continue;
+      const shown = new Set(p.bubbles.map(b => b.item.id));
+      const hidden = mine.filter(i => !shown.has(i.id)).sort((a, b) => (a.lastShown || 0) - (b.lastShown || 0));
+      if (!hidden.length) continue;
+      if (p.bubbles.length >= MAX) removeBubble(p, p.bubbles[0]);
+      makeBubble(p, hidden[0]);
+    }
+  }, ROTATE);
+
+  const DEMO = [['Dr. Nefarious', 'Replied-all to the whole company on purpose'], ['Kat', 'Ate my roommate’s leftovers and blamed the dog'], ['Big Mo', 'Told a toddler the ice cream truck only plays music when it’s out of ice cream'], ['Vee', 'Unplugged the office fridge before a long weekend'], ['Anon', 'Returned a library book 3 years late. No regrets.'], ['Jax', 'Kept the group chat on read for 11 days']];
+  let demoN = 0;
+  function demoBubble(screen) {
+    const d = DEMO[demoN % DEMO.length]; demoN++;
+    const item = { id: 'demo-' + demoN + '-' + Math.random().toString(36).slice(2, 6), ts: Date.now(), name: d[0], text: d[1], screen: screen || ['A', 'B', 'C'][demoN % 3], demo: true };
+    allItems.set(item.id, item); show(item);
+  }
+  if (Q.get('demo') === '1') for (let i = 0; i < 9; i++) demoBubble();
+
+  // ---------- controls ----------
+  const help = document.getElementById('help');
+  function updateHelp() {
+    document.getElementById('helpcfg').textContent = `layout=${LAYOUT} order=${ORDER.join(',')} qr=${QR_ON.join(',')} qrpos=${QR_POS} max=${MAX} · video: ${videoSource} · submit URL: ${location.origin}/submit`;
+  }
+  updateHelp();
+  function goto(mut) { mut(Q); location.search = Q.toString(); }
+  addEventListener('keydown', e => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const k = e.key.toLowerCase();
+    if (k === 'f') { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => {}); }
+    else if (k === 'c') document.body.classList.toggle('cal');
+    else if (k === 'h' || k === '?') help.classList.toggle('show');
+    else if (k === 'escape') help.classList.remove('show');
+    else if (k === 'v') document.getElementById('file').click();
+    else if (k === 'x') { idbDel('video').catch(() => {}).then(() => goto(q => q.delete('video'))); }
+    else if (k === 'd') demoBubble();
+    else if (k === 'l') goto(q => { q.set('layout', { grid: 'row', row: 'single', single: 'grid' }[LAYOUT] || 'grid'); q.delete('order'); });
+    else if (k === 'q') goto(q => q.set('qr', QR_ON.includes('ALL') ? 'B' : 'all'));
+  });
+  let cursorTimer;
+  addEventListener('mousemove', () => { document.body.classList.remove('nocursor'); clearTimeout(cursorTimer); cursorTimer = setTimeout(() => document.body.classList.add('nocursor'), 2500); });
+  cursorTimer = setTimeout(() => document.body.classList.add('nocursor'), 2500);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "name": "villain-wall",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Party projector wall: looping villain video + QR-driven floating confession bubbles",
+  "dependencies": {
+    "@vercel/blob": "^1.1.1"
+  },
+  "devDependencies": {
+    "qrcode-generator": "^1.4.4"
+  }
+}

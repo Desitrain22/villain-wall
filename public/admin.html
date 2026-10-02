@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Villain Wall · admin</title>
+<style>
+:root{color-scheme:dark}
+body{margin:0;background:#0a0014;color:#fff;font-family:system-ui,sans-serif;padding:16px}
+main{max-width:720px;margin:0 auto}
+h1{font-size:20px;margin:0 0 12px;color:#39ff14}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+input{font:inherit;padding:10px;border-radius:10px;border:1px solid #b026ff;background:#160028;color:#fff;flex:1;min-width:160px}
+button{font:inherit;padding:10px 14px;border-radius:10px;border:0;background:#b026ff;color:#fff;cursor:pointer;font-weight:700}
+button.del{background:#ff2a6d}
+.item{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid #2a0050;border-radius:12px;margin-bottom:8px;background:rgba(255,255,255,.04)}
+.item .s{font-weight:800;color:#39ff14;min-width:20px}
+.item .b{flex:1}
+.item .n{font-weight:800;color:#c9b3ff}
+.item .t{margin-top:2px}
+.item time{font-size:12px;color:#888}
+#msg{color:#ff6b8a;font-weight:700;min-height:1.2em}
+</style>
+</head>
+<body>
+<main>
+<h1>Villain Wall · moderation</h1>
+<div class="bar">
+  <input id="key" type="password" placeholder="admin key" autocomplete="off">
+  <button id="save">Save key</button>
+  <span id="count"></span>
+</div>
+<div id="msg"></div>
+<div id="list"></div>
+</main>
+<script>
+(() => {
+  const key = document.getElementById('key'), list = document.getElementById('list'), msg = document.getElementById('msg'), count = document.getElementById('count');
+  try { key.value = localStorage.getItem('vw-admin') || ''; } catch {}
+  document.getElementById('save').onclick = () => { try { localStorage.setItem('vw-admin', key.value); } catch {} msg.textContent = 'Saved.'; setTimeout(() => msg.textContent = '', 1200); };
+  async function refresh() {
+    try {
+      const r = await fetch('/api/list', { cache: 'no-store' }); const d = await r.json();
+      const items = (d.items || []).slice().reverse();
+      count.textContent = items.length + ' confessions';
+      list.innerHTML = '';
+      for (const i of items) {
+        const el = document.createElement('div'); el.className = 'item';
+        const s = document.createElement('div'); s.className = 's'; s.textContent = i.screen;
+        const b = document.createElement('div'); b.className = 'b';
+        const n = document.createElement('div'); n.className = 'n'; n.textContent = i.name;
+        const t = document.createElement('div'); t.className = 't'; t.textContent = i.text;
+        const tm = document.createElement('time'); tm.textContent = new Date(i.ts).toLocaleTimeString();
+        b.append(n, t, tm);
+        const del = document.createElement('button'); del.className = 'del'; del.textContent = 'Delete';
+        del.onclick = async () => {
+          if (!key.value) { msg.textContent = 'Enter the admin key first.'; return; }
+          del.disabled = true;
+          const rr = await fetch(`/api/submit?id=${encodeURIComponent(i.id)}&key=${encodeURIComponent(key.value)}`, { method: 'DELETE' });
+          const dd = await rr.json().catch(() => ({}));
+          if (!rr.ok) { msg.textContent = dd.error || ('HTTP ' + rr.status); del.disabled = false; return; }
+          el.remove();
+        };
+        el.append(s, b, del); list.appendChild(el);
+      }
+    } catch (e) { msg.textContent = 'Could not load: ' + e.message; }
+  }
+  refresh(); setInterval(refresh, 5000);
+})();
+</script>
+</body>
+</html>
