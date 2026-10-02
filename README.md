@@ -13,32 +13,54 @@ and guests' confessions floating around as bubbles.
 
 ## 1. Put it on the projectors (venue laptop)
 
-### Option A — Chrome straight to the projector (simplest)
+### Step 0 — 2-minute hardware check (do this before quitting Resolume)
 
-1. Quit Resolume Arena (or just stop its output). The projector feed becomes a normal Mac display.
-2. Open **Google Chrome** → `https://villain-wall.vercel.app`
-3. Drag the window onto the projector display, press **F** (fullscreen).
-4. Press **C**. Each panel shows a giant **A / B / C / X**. Note which physical projector shows which letter.
-   - The default layout is a **2x2 grid** (A top-left, B top-right, C bottom-left, X bottom-right = video only).
-     That matches a single 4K output split into four 1080p feeds, which is what the Resolume composition suggests.
-   - If the projectors instead form one wide strip, press **L** to switch to the **1x3 row** layout.
-   - If the letters land on the wrong projectors, reorder with a URL, e.g. `/?order=B,A,C,X`.
-   - If each projector is its own display in macOS, open three Chrome windows: `/?layout=single&screen=A`, `…&screen=B`, `…&screen=C`, and fullscreen each on its projector.
-5. Press **C** again to hide the labels. Video + QR + bubbles are now live. Keep the Mac awake: in Terminal run `caffeinate -dimsu`.
+1. **In Resolume:** menu **Output → Identify Displays** overlays a number on each output, and **Output → Show Test Card**
+   shows the resolution. Note which physical projector is which. **Output → Advanced…** shows the Screens/Slices mapping.
+2. **In macOS:** Apple menu → **System Settings → Displays**. Count the external display thumbnails.
+   - **One external display at 3840 x 2160** → the single USB-C cable goes to a 4K video-wall splitter (Datapath Fx4,
+     QuadHead2Go, generic 2x2 box) that cuts the picture into four 1080p quadrants, one per projector. **Use the default
+     `grid` layout.** (This is what the Resolume screenshot suggests.)
+   - **One external display at 5760 x 1080** → a 1x3 unit (TripleHead2Go-style). **Use `/?layout=row`.**
+   - **Three separate 1920 x 1080 displays** → a dock. Open three Chrome windows:
+     `/?layout=single&screen=A`, `…screen=B`, `…screen=C`, one fullscreen on each projector
+     (turn on System Settings → Desktop & Dock → *Displays have separate Spaces* first).
+   - Terminal equivalent: `system_profiler SPDisplaysDataType | grep -E 'Resolution:|UI Looks like:|Connection Type:'`
+3. Disable sleep and the screen saver: System Settings → Lock Screen → *Start Screen Saver* **Never**, *Turn display off*
+   **Never**; turn on **Do Not Disturb**. Or run `caffeinate -dims` in Terminal and leave it open.
 
-Or from Terminal: `scripts/launch-wall.sh` (kiosk Chrome, keeps the Mac awake; set `POS=x,y SIZE=w,h` to the projector display).
+### Option A — Chrome straight to the projector (simplest, recommended)
+
+1. Quit Resolume Arena (or **Output → Disabled**) so it releases the display.
+2. Open **Google Chrome** → `https://villain-wall.vercel.app` (Chrome Settings → Performance → turn **off** Memory Saver).
+3. Drag the window onto the projector display, press **F** (fullscreen). Move the mouse back to the laptop screen.
+4. Press **C**. Each panel shows a giant **A / B / C / X**. Walk the room and note which projector shows which letter.
+   - Default `grid`: A top-left, B top-right, C bottom-left, X bottom-right (video only, for the spare/offline output).
+   - Letters on the wrong projectors? Reorder in the URL, e.g. `/?order=B,A,C,X` (left, center, right = A, B, C).
+   - Projectors form one wide strip? Press **L** for the 1x3 `row` layout.
+5. Press **C** again to hide the labels. Video + QR + bubbles are live.
+
+Terminal shortcut: `scripts/launch-wall.sh` launches a kiosk Chrome and keeps the Mac awake.
+Set `POS=x,y SIZE=w,h` to the projector display's origin and size, e.g. `POS=1512,0 SIZE=3840,2160 scripts/launch-wall.sh`.
 
 ### Option B — keep Resolume and feed it the browser
 
-Resolume Arena 6 on Mac accepts **Syphon** and **NDI** sources. Turn the Chrome window into one of those and
-drop it in as a clip; your existing Advanced Output mapping to the projectors keeps working:
+Arena 6 accepts **Syphon** sources with nothing to enable (Sources tab on the right → drag the server onto an empty clip
+slot → click the clip → menu **Clip → Resize → Fill**). Your Advanced Output mapping stays exactly as it is.
+Chrome cannot publish Syphon itself, so you need a bridge:
 
-- **NDI:** install NDI Tools for Mac, run *NDI Scan Converter*, pick the Chrome window/display → in Resolume,
-  Sources tab → NDI → drag the "Scan Converter" source into a clip slot → trigger it → scale to fit the composition.
-- **Syphon:** run *Syphoner* (free), select the Chrome window → in Resolume, Sources → Syphon → drag the server into a clip slot.
+- **Syphoner** (fastest, CHF 15, macOS 14.6+): https://www.sigmasix.ch/apps/syphoner/ — pick the Chrome window, grant
+  Screen Recording when asked, quit and relaunch it. The unpaid trial watermarks the output.
+- **OBS Studio** (free): add a *Browser* source at 3840x2160 pointing at the wall URL (or a window capture of Chrome),
+  then publish via the obs-syphon-server plugin (Apple Silicon) or as **NDI** via DistroAV + NDI Runtime; in Resolume
+  the source appears under Sources → Syphon / NDI. Note: OBS's built-in browser often can't decode H.264, so use a
+  window capture of Chrome rather than the Browser source if the video stays black.
+- **NDI Tools → NDI Scan Converter** (free, no OBS): https://downloads.ndi.tv/Tools/NDIToolsInstaller.pkg — captures
+  the Chrome window as NDI. Arena 6.0 added NDI input, but 6.1.5 receiving a current NDI 6 sender is unverified;
+  prefer Syphon if you have the choice.
 
-Open the wall at `/?layout=grid` so the page's four quadrants line up with the composition's four 1080p quadrants,
-and size the Chrome window as large as possible (16:9).
+Keep the Chrome window a 16:9 normal window on the laptop screen, **never minimized** (macOS stops rendering minimized
+windows and the feed freezes). Open the wall at `/?layout=grid` so its four quadrants line up with the composition's.
 
 ## 2. Controls on the wall page
 
