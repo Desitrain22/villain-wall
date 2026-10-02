@@ -1,10 +1,10 @@
 import { addSubmission, deleteSubmission, makeId } from '../lib/store.js';
 
 const SCREENS = new Set(['A', 'B', 'C']);
-// Light per-IP throttle (per warm instance): 8 confessions per minute is plenty for a human.
+// Light per-IP throttle (per warm instance). Venue WiFi puts every guest behind one IP, so keep it generous: 60/min.
 const hits = new Map();
 function throttled(ip) {
-  const now = Date.now(), win = 60_000, limit = 8;
+  const now = Date.now(), win = 60_000, limit = 60;
   const arr = (hits.get(ip) || []).filter(t => now - t < win);
   arr.push(now); hits.set(ip, arr);
   if (hits.size > 5000) hits.clear();
