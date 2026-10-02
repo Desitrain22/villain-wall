@@ -111,7 +111,8 @@ body.dragging #drop{display:flex}
     el.innerHTML = `<div class="fallback"></div><video muted autoplay loop playsinline preload="auto" disablepictureinpicture disableremoteplayback controlslist="nodownload nofullscreen noremoteplayback"></video><div class="tint"></div><div class="bubbles"></div>` +
       `<div class="label"><b>${screen}</b><span>${NAMES[screen] || ''}</span><small>layout: ${LAYOUT} · panel ${i + 1} of ${ORDER.length}</small></div>`;
     wall.appendChild(el);
-    const p = { screen, el, video: el.querySelector('video'), bubblesEl: el.querySelector('.bubbles'), w: 1, h: 1, bubbles: [] };
+    const p = { screen, el, video: el.querySelector('video'), bubblesEl: el.querySelector('.bubbles'), w: Math.max(1, el.clientWidth), h: Math.max(1, el.clientHeight), bubbles: [] };
+    el.style.setProperty('--pw', p.w + 'px'); el.style.setProperty('--ph', p.h + 'px');
     panels.push(p);
     if (screen !== 'X' && (QR_ON.includes('ALL') || QR_ON.includes(screen))) addQR(p);
   });
@@ -120,7 +121,7 @@ body.dragging #drop{display:flex}
       const p = panels.find(p => p.el === e.target); if (!p) continue;
       p.w = e.contentRect.width; p.h = e.contentRect.height;
       p.el.style.setProperty('--pw', p.w + 'px'); p.el.style.setProperty('--ph', p.h + 'px');
-      for (const b of p.bubbles) { b.w = b.el.offsetWidth; b.h = b.el.offsetHeight; }
+      for (const b of p.bubbles) { b.w = b.el.offsetWidth; b.h = b.el.offsetHeight; b.x = Math.min(b.x, Math.max(0, p.w - b.w)); b.y = Math.min(b.y, Math.max(0, p.h - b.h)); }
     }
     fitYT();
   });
@@ -225,13 +226,27 @@ body.dragging #drop{display:flex}
   let last = performance.now();
   function frame(now) {
     const dt = Math.min(.05, (now - last) / 1000); last = now; const t = now / 1000;
-    for (const p of panels) for (const b of p.bubbles) {
-      b.x += b.vx * dt; b.y += b.vy * dt;
-      if (b.x < 0) { b.x = 0; b.vx = Math.abs(b.vx); } else if (b.x + b.w > p.w) { b.x = Math.max(0, p.w - b.w); b.vx = -Math.abs(b.vx); }
-      if (b.y < 0) { b.y = 0; b.vy = Math.abs(b.vy); } else if (b.y + b.h > p.h) { b.y = Math.max(0, p.h - b.h); b.vy = -Math.abs(b.vy); }
-      const bob = Math.sin(t * b.bob + b.ph) * p.h * .012;
-      const r = Math.sin(t * .9 + b.ph) * b.rot;
-      b.el.style.transform = `translate3d(${b.x}px,${b.y + bob}px,0) rotate(${r}deg)`;
+    for (const p of panels) {
+      const bs = p.bubbles;
+      for (const b of bs) { b.x += b.vx * dt; b.y += b.vy * dt; }
+      // gentle separation so bubbles drift apart instead of stacking
+      for (let i = 0; i < bs.length; i++) for (let j = i + 1; j < bs.length; j++) {
+        const a = bs[i], c = bs[j];
+        const ox = Math.min(a.x + a.w, c.x + c.w) - Math.max(a.x, c.x);
+        const oy = Math.min(a.y + a.h, c.y + c.h) - Math.max(a.y, c.y);
+        if (ox <= 0 || oy <= 0) continue;
+        const push = Math.min(ox, oy) * .06 + .2;
+        if (ox < oy) { const d = (a.x + a.w / 2) <= (c.x + c.w / 2) ? -1 : 1; a.x += d * push; c.x -= d * push; }
+        else { const d = (a.y + a.h / 2) <= (c.y + c.h / 2) ? -1 : 1; a.y += d * push; c.y -= d * push; }
+      }
+      const pad = p.h * .013;
+      for (const b of bs) {
+        if (b.x < 0) { b.x = 0; b.vx = Math.abs(b.vx); } else if (b.x + b.w > p.w) { b.x = Math.max(0, p.w - b.w); b.vx = -Math.abs(b.vx); }
+        if (b.y < pad) { b.y = pad; b.vy = Math.abs(b.vy); } else if (b.y + b.h > p.h - pad) { b.y = Math.max(pad, p.h - b.h - pad); b.vy = -Math.abs(b.vy); }
+        const bob = Math.sin(t * b.bob + b.ph) * p.h * .012;
+        const r = Math.sin(t * .9 + b.ph) * b.rot;
+        b.el.style.transform = `translate3d(${b.x}px,${b.y + bob}px,0) rotate(${r}deg)`;
+      }
     }
     requestAnimationFrame(frame);
   }
