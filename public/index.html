@@ -62,7 +62,7 @@ body.dragging #drop{display:flex}
 <div id="help">
   <h2>VILLAIN WALL · controls</h2>
   <div class="row">
-    <span><kbd>F</kbd></span><span>Toggle fullscreen</span>
+    <span><kbd>F</kbd></span><span>Toggle fullscreen (prefer Chrome's own <b>Ctrl+Cmd+F</b>: it survives the automatic refresh that happens when a new version is deployed)</span>
     <span><kbd>C</kbd></span><span>Calibration labels (shows which projector is A / B / C)</span>
     <span><kbd>L</kbd></span><span>Cycle layout: <code>grid</code> (2x2 quadrants) → <code>row</code> (1x3) → <code>single</code></span>
     <span><kbd>Q</kbd></span><span>QR on center only ↔ QR on all screens</span>
@@ -108,7 +108,7 @@ body.dragging #drop{display:flex}
   ORDER.forEach((screen, i) => {
     const el = document.createElement('section');
     el.className = 'panel'; el.dataset.screen = screen;
-    el.innerHTML = `<div class="fallback"></div><video muted autoplay loop playsinline preload="auto" disablepictureinpicture disableremoteplayback controlslist="nodownload nofullscreen noremoteplayback"></video><div class="tint"></div><div class="bubbles"></div>` +
+    el.innerHTML = `<div class="fallback"></div><video muted loop playsinline preload="auto" disablepictureinpicture disableremoteplayback controlslist="nodownload nofullscreen noremoteplayback"></video><div class="tint"></div><div class="bubbles"></div>` +
       `<div class="label"><b>${screen}</b><span>${NAMES[screen] || ''}</span><small>layout: ${LAYOUT} · panel ${i + 1} of ${ORDER.length}</small></div>`;
     wall.appendChild(el);
     const p = { screen, el, video: el.querySelector('video'), bubblesEl: el.querySelector('.bubbles'), w: Math.max(1, el.clientWidth), h: Math.max(1, el.clientHeight), bubbles: [] };
@@ -159,10 +159,30 @@ body.dragging #drop{display:flex}
     for (const p of panels) { if (!p.yt) continue; const w = Math.max(p.w, p.h * 16 / 9), h = w * 9 / 16;
       Object.assign(p.yt.style, { width: w + 'px', height: h + 'px', left: (p.w - w) / 2 + 'px', top: (p.h - h) / 2 + 'px' }); }
   }
-  function setVideo(src, label) {
-    videoSource = label;
-    for (const p of panels) { if (!p.video) continue; p.video.src = src; p.video.load(); p.video.play().catch(() => {}); }
-    updateHelp();
+  let videoGen = 0;
+  async function setVideo(src, label) {
+    const gen = ++videoGen;
+    videoSource = label + ' (loading…)'; updateHelp();
+    let url = src;
+    if (/^https?:/i.test(src)) {
+      // Download once and keep it in memory: one transfer instead of four streams,
+      // instant seeks, and the loop survives WiFi hiccups all night.
+      try {
+        const r = await fetch(src, { mode: 'cors' });
+        if (r.ok) { const blob = await r.blob(); if (gen !== videoGen) return; url = URL.createObjectURL(blob); label += ' · cached in memory'; }
+      } catch (e) { label += ' · streaming'; }
+    }
+    if (gen !== videoGen) return;
+    const vids = panels.map(p => p.video).filter(Boolean);
+    for (const v of vids) { v.src = url; v.load(); }
+    await Promise.all(vids.map(v => new Promise(res => {
+      if (v.readyState >= 3) return res();
+      v.addEventListener('canplay', res, { once: true });
+      setTimeout(res, 15000);
+    })));
+    if (gen !== videoGen) return;
+    for (const v of vids) { try { v.currentTime = 0; } catch {} v.play().catch(() => {}); }
+    videoSource = label; updateHelp();
   }
   (async () => {
     if (YT) return useYouTube(YT);
@@ -287,11 +307,20 @@ body.dragging #drop{display:flex}
   if (DEBUG) status.classList.add('show');
   function setStatus(kind, msg) { status.className = 'show ' + kind; if (!DEBUG) status.classList.remove('show'); status.textContent = msg; }
 
+  let seenBuild = null, reloadTimer = null;
+  function checkBuild(build) {
+    if (!build) return;
+    if (!seenBuild) { seenBuild = build; return; }
+    if (build === seenBuild || reloadTimer) return;
+    if (document.fullscreenElement) return; // F-key fullscreen would be lost on reload; use Chrome's own fullscreen (Ctrl+Cmd+F) instead
+    reloadTimer = setTimeout(() => location.reload(), 12000 + Math.random() * 6000);
+  }
   async function poll() {
     try {
       const r = await fetch(`/api/list?since=${lastTs}`, { cache: 'no-store' });
       if (!r.ok) throw new Error('HTTP ' + r.status);
       const d = await r.json();
+      checkBuild(d.build);
       const live = new Set(d.ids || []);
       for (const [id, item] of allItems) if (!item.demo && !live.has(id)) {
         allItems.delete(id);

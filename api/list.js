@@ -7,7 +7,7 @@ export default async function handler(req, res) {
   try {
     const all = await listSubmissions();
     const items = all.filter(i => i.ts > since).map(({ id, ts, name, text, screen }) => ({ id, ts, name, text, screen }));
-    return res.status(200).json({ now: Date.now(), count: all.length, ids: all.map(i => i.id), items });
+    return res.status(200).json({ now: Date.now(), build: process.env.VERCEL_DEPLOYMENT_ID || process.env.VERCEL_URL || null, count: all.length, ids: all.map(i => i.id), items });
   } catch (e) {
     console.error('list error', e);
     return res.status(500).json({ error: 'list failed' });
