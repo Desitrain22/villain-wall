@@ -34,7 +34,8 @@ continuous wall: bubbles drift from projector to projector and bounce off the fa
 
 1. Quit Resolume Arena (or **Output → Disabled**) so it releases the display.
 2. Open **Google Chrome** → `https://villain-wall.vercel.app` (Chrome Settings → Performance → turn **off** Memory Saver).
-3. Drag the window onto the projector display, press **F** (fullscreen). Move the mouse back to the laptop screen.
+3. Drag the window onto the projector display and press **Ctrl+Cmd+F** (Chrome's fullscreen; it survives the
+   automatic refresh on new deploys). The page's **F** key works too but is dropped by a reload. Move the mouse back to the laptop screen.
 4. Press **C**. Each panel shows a giant **A / B / C / X**. Walk the room and note which projector shows which letter.
    - Default `grid`: A top-left, B top-right, C bottom-left, X bottom-right (video only, for the spare/offline output).
    - Letters on the wrong projectors? Reorder in the URL, e.g. `/?order=B,A,C,X` (left, center, right = A, B, C).
@@ -93,8 +94,12 @@ Deleted bubbles vanish from the wall within a few seconds.
 - The wall polls `/api/list?since=<ts>` every 2.5s, adds new bubbles, removes deleted ones, shows the newest
   60 and rotates older ones back in every 15s. Each bubble has a clone in every panel, positioned on one
   virtual strip (3 x panel width), so it crosses the seam between projectors seamlessly.
-- The video is a 56 MB muted H.264 MP4 on Vercel Blob (transcoded from the 397 MB original). Four `<video>`
-  copies play it and are re-synced every 3s so adjacent projectors match.
+- The video is a 56 MB muted H.264 MP4 on Vercel Blob (transcoded from the 397 MB original). The wall downloads
+  it once into memory, starts the four `<video>` copies together, and re-syncs them every 3s so adjacent
+  projectors match. After the first load it keeps looping even if the WiFi drops.
+- The wall checks the deployment id on every poll and reloads itself ~15s after a new version is deployed, so you
+  never have to touch the projector laptop. Use Chrome's own fullscreen (Ctrl+Cmd+F) rather than the page's F key,
+  because a reload drops the F-key fullscreen and the page then waits for you to reload manually.
 
 ## Dev
 
