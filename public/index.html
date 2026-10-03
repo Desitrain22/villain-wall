@@ -71,7 +71,7 @@ body.dragging #drop{display:flex}
     <span><kbd>D</kbd></span><span>Drop a demo bubble (not saved). Bubbles roam freely across A → B → C as one wide wall.</span>
     <span><kbd>H</kbd> / <kbd>?</kbd></span><span>Show / hide this help</span>
   </div>
-  <p style="margin:12px 0 0;color:#c9b3ff">URL params: <code>?layout=grid|row|single</code> <code>&amp;order=A,B,C,X</code> <code>&amp;screen=B|ALL</code> <code>&amp;qr=B|all</code> <code>&amp;qrpos=br|bl|tr|tl|c</code> <code>&amp;video=https://…mp4</code> <code>&amp;yt=1</code> (YouTube fallback) <code>&amp;max=60</code> <code>&amp;debug=1</code></p>
+  <p style="margin:12px 0 0;color:#c9b3ff">URL params: <code>?layout=grid|row|single</code> <code>&amp;order=A,B,C,X</code> <code>&amp;screen=B|ALL</code> <code>&amp;qr=B|all</code> <code>&amp;qrpos=br|bl|tr|tl|c</code> <code>&amp;video=https://…mp4</code> <code>&amp;yt=1</code> (YouTube fallback) <code>&amp;stagger=1|0|&lt;seconds&gt;</code> (A/B/C show different parts of the loop) <code>&amp;max=60</code> <code>&amp;debug=1</code></p>
   <p id="helpcfg" style="margin:8px 0 0;color:#9a8ab8;font-size:13px"></p>
 </div>
 <div id="status"></div>
@@ -94,6 +94,8 @@ body.dragging #drop{display:flex}
   const POLL = Math.max(800, +get('poll', 2500) || 2500);
   const ROTATE = Math.max(3000, +get('rotate', 15000) || 15000);
   const SPEED = +get('speed', 1) || 1;
+  const stRaw = String(get('stagger', '1')).toLowerCase();
+  const STAGGER = (stRaw === '0' || stRaw === 'off' || stRaw === 'false') ? 0 : (parseFloat(stRaw) > 1 ? parseFloat(stRaw) : 1); // 0 = in sync, 1 = even thirds, >1 = seconds per screen
   const DEBUG = Q.get('debug') === '1';
   const NAMES = { A: 'LEFT', B: 'CENTER', C: 'RIGHT', X: 'SPARE (video only)', ALL: 'ALL SCREENS' };
   const COLORS = ['#39ff14', '#b026ff', '#ff2a6d', '#00e5ff', '#ffd400', '#ff6a00', '#ff3cf0'];
@@ -126,6 +128,15 @@ body.dragging #drop{display:flex}
     fitYT();
   });
   panels.forEach(p => ro.observe(p.el));
+  const PRESENT = ['A', 'B', 'C'].filter(sc => panels.some(p => p.screen === sc));
+  const SEGIDX = Object.fromEntries(PRESENT.map((sc, i) => [sc, i]));
+  const SEGS = Math.max(1, PRESENT.length);
+  // Loop offset per screen: A, B, C each show a different part of the video (X mirrors A).
+  function screenOffset(screen, D) {
+    if (STAGGER === 0 || !(screen in SEGIDX) || !D || !isFinite(D)) return 0;
+    const step = STAGGER > 1 ? STAGGER : D / SEGS;
+    return (SEGIDX[screen] * step) % D;
+  }
 
   function addQR(p) {
     const box = document.createElement('div');
@@ -150,7 +161,8 @@ body.dragging #drop{display:flex}
     for (const p of panels) {
       const f = document.createElement('iframe');
       f.className = 'yt'; f.setAttribute('allow', 'autoplay; encrypted-media'); f.setAttribute('frameborder', '0');
-      f.src = `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&loop=1&playlist=${id}&controls=0&modestbranding=1&playsinline=1&rel=0&iv_load_policy=3&disablekb=1&fs=0`;
+      const st = STAGGER === 0 ? 0 : Math.round((SEGIDX[p.screen] || 0) * (STAGGER > 1 ? STAGGER : 60));
+      f.src = `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&loop=1&playlist=${id}&controls=0&modestbranding=1&playsinline=1&rel=0&iv_load_policy=3&disablekb=1&fs=0&start=${st}`;
       p.video.replaceWith(f); p.video = null; p.yt = f;
     }
     fitYT(); updateHelp();
@@ -181,8 +193,9 @@ body.dragging #drop{display:flex}
       setTimeout(res, 15000);
     })));
     if (gen !== videoGen) return;
-    for (const v of vids) { try { v.currentTime = 0; } catch {} v.play().catch(() => {}); }
-    videoSource = label; updateHelp();
+    const D = vids[0] ? vids[0].duration : 0;
+    for (const p of panels) { const v = p.video; if (!v) continue; p.offset = screenOffset(p.screen, D); try { v.currentTime = p.offset; } catch {} v.play().catch(() => {}); }
+    videoSource = label + (STAGGER ? ` · staggered ${Math.round(screenOffset('B', D))}s/screen` : ' · in sync'); updateHelp();
   }
   (async () => {
     if (YT) return useYouTube(YT);
@@ -199,9 +212,13 @@ body.dragging #drop{display:flex}
   // keep the copies in lockstep so adjacent projectors match
   setInterval(() => {
     const m = panels[0]?.video; if (!m || m.readyState < 2) return;
+    const D = m.duration; if (!D || !isFinite(D)) return;
+    const base = panels[0].offset || 0;
     for (const p of panels.slice(1)) {
       const v = p.video; if (!v || v.readyState < 2) continue;
-      if (Math.abs(v.currentTime - m.currentTime) > 0.25) v.currentTime = m.currentTime;
+      const target = (((m.currentTime - base + (p.offset || 0)) % D) + D) % D;
+      let d = (((v.currentTime - target) % D) + D) % D; if (d > D / 2) d -= D;
+      if (Math.abs(d) > 0.25) v.currentTime = target;
       if (v.paused && !m.paused) v.play().catch(() => {});
     }
   }, 3000);
@@ -213,9 +230,6 @@ body.dragging #drop{display:flex}
   // (present segments x panel width). Every bubble has a clone in each bubble panel;
   // the clone is positioned at (x - segmentOffset) and clipped by the panel, so a
   // bubble slides seamlessly from one projector onto the next.
-  const PRESENT = ['A', 'B', 'C'].filter(sc => panels.some(p => p.screen === sc));
-  const SEGIDX = Object.fromEntries(PRESENT.map((sc, i) => [sc, i]));
-  const SEGS = Math.max(1, PRESENT.length);
   const bubblePanels = panels.filter(p => p.screen in SEGIDX || p.screen === 'ALL');
   const refPanel = panels.find(p => p.screen in SEGIDX) || bubblePanels[0] || null;
   const strip = () => refPanel ? { w: refPanel.w * SEGS, h: refPanel.h, segw: refPanel.w } : { w: 1, h: 1, segw: 1 };

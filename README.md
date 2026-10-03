@@ -79,7 +79,7 @@ windows and the feed freezes). Open the wall at `/?layout=grid` so its four quad
 
 URL params override `public/config.js`:
 `?layout=grid|row|single` `&order=A,B,C,X` `&screen=B` `&qr=B|all` `&qrpos=br|bl|tr|tl|c`
-`&video=https://…mp4` `&yt=1` (YouTube fallback) `&max=60` (bubbles on the wall at once) `&poll=2500` `&demo=1` `&debug=1`
+`&video=https://…mp4` `&yt=1` (YouTube fallback) `&stagger=1|0|<seconds>` (A/B/C offset in the loop) `&max=60` (bubbles on the wall at once) `&poll=2500` `&demo=1` `&debug=1`
 
 ## 3. Moderation
 
@@ -95,8 +95,8 @@ Deleted bubbles vanish from the wall within a few seconds.
   60 and rotates older ones back in every 15s. Each bubble has a clone in every panel, positioned on one
   virtual strip (3 x panel width), so it crosses the seam between projectors seamlessly.
 - The video is a 56 MB muted H.264 MP4 on Vercel Blob (transcoded from the 397 MB original). The wall downloads
-  it once into memory, starts the four `<video>` copies together, and re-syncs them every 3s so adjacent
-  projectors match. After the first load it keeps looping even if the WiFi drops.
+  it once into memory and starts the copies a third of the loop apart (A, B, C each show a different part;
+  `?stagger=0` for in-sync), re-checking every 3s so the offsets never drift. After the first load it keeps looping even if the WiFi drops.
 - The wall checks the deployment id on every poll and reloads itself ~15s after a new version is deployed, so you
   never have to touch the projector laptop. Use Chrome's own fullscreen (Ctrl+Cmd+F) rather than the page's F key,
   because a reload drops the F-key fullscreen and the page then waits for you to reload manually.
