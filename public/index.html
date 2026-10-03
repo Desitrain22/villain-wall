@@ -71,7 +71,7 @@ body.dragging #drop{display:flex}
     <span><kbd>D</kbd></span><span>Drop a demo bubble (not saved)</span>
     <span><kbd>H</kbd> / <kbd>?</kbd></span><span>Show / hide this help</span>
   </div>
-  <p style="margin:12px 0 0;color:#c9b3ff">URL params: <code>?layout=grid|row|single</code> <code>&amp;order=A,B,C,X</code> <code>&amp;screen=B</code> <code>&amp;qr=B|all</code> <code>&amp;qrpos=br|bl|tr|tl|c</code> <code>&amp;video=https://…mp4</code> <code>&amp;yt=1</code> (YouTube fallback) <code>&amp;max=24</code> <code>&amp;debug=1</code></p>
+  <p style="margin:12px 0 0;color:#c9b3ff">URL params: <code>?layout=grid|row|single</code> <code>&amp;order=A,B,C,X</code> <code>&amp;screen=B|ALL</code> <code>&amp;qr=B|all</code> <code>&amp;qrpos=br|bl|tr|tl|c</code> <code>&amp;video=https://…mp4</code> <code>&amp;yt=1</code> (YouTube fallback) <code>&amp;max=24</code> <code>&amp;debug=1</code></p>
   <p id="helpcfg" style="margin:8px 0 0;color:#9a8ab8;font-size:13px"></p>
 </div>
 <div id="status"></div>
@@ -95,7 +95,7 @@ body.dragging #drop{display:flex}
   const ROTATE = Math.max(3000, +get('rotate', 15000) || 15000);
   const SPEED = +get('speed', 1) || 1;
   const DEBUG = Q.get('debug') === '1';
-  const NAMES = { A: 'LEFT', B: 'CENTER', C: 'RIGHT', X: 'SPARE (video only)' };
+  const NAMES = { A: 'LEFT', B: 'CENTER', C: 'RIGHT', X: 'SPARE (video only)', ALL: 'ALL SCREENS' };
   const COLORS = ['#39ff14', '#b026ff', '#ff2a6d', '#00e5ff', '#ffd400', '#ff6a00', '#ff3cf0'];
   const rand = (a, b) => a + Math.random() * (b - a);
   const hash = s => { let h = 0; for (const ch of String(s)) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return h; };
@@ -114,7 +114,7 @@ body.dragging #drop{display:flex}
     const p = { screen, el, video: el.querySelector('video'), bubblesEl: el.querySelector('.bubbles'), w: Math.max(1, el.clientWidth), h: Math.max(1, el.clientHeight), bubbles: [] };
     el.style.setProperty('--pw', p.w + 'px'); el.style.setProperty('--ph', p.h + 'px');
     panels.push(p);
-    if (screen !== 'X' && (QR_ON.includes('ALL') || QR_ON.includes(screen))) addQR(p);
+    if (screen !== 'X' && (screen === 'ALL' || QR_ON.includes('ALL') || QR_ON.includes(screen))) addQR(p);
   });
   const ro = new ResizeObserver(entries => {
     for (const e of entries) {
@@ -191,7 +191,7 @@ body.dragging #drop{display:flex}
   // ---------- bubbles ----------
   const allItems = new Map();
   let lastTs = 0, first = true;
-  const panelsFor = s => panels.filter(p => p.screen === s);
+  const panelsFor = s => panels.filter(p => p.screen === s || p.screen === 'ALL');
 
   function makeBubble(p, item) {
     const el = document.createElement('div');
@@ -281,7 +281,7 @@ body.dragging #drop{display:flex}
 
   setInterval(() => {
     for (const p of panels) {
-      const mine = [...allItems.values()].filter(i => i.screen === p.screen);
+      const mine = [...allItems.values()].filter(i => p.screen === 'ALL' || i.screen === p.screen);
       if (!mine.length || mine.length <= p.bubbles.length) continue;
       const shown = new Set(p.bubbles.map(b => b.item.id));
       const hidden = mine.filter(i => !shown.has(i.id)).sort((a, b) => (a.lastShown || 0) - (b.lastShown || 0));
