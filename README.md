@@ -84,17 +84,22 @@ URL params override `public/config.js`:
 ## 3. Moderation
 
 `https://villain-wall.vercel.app/admin` → paste the admin key (in Vercel env `ADMIN_KEY`) → Delete.
-Deleted bubbles vanish from the wall within a few seconds.
+Deleted bubbles vanish from the wall within a few seconds. Deletions are commits too, so nothing is ever truly gone:
+`git log` in the data repo has every version.
 
 ## How it works
 
 - Static HTML in `public/`, two Vercel functions in `api/` (`submit`, `list`), shared store in `lib/store.js`.
-- Each confession is one small JSON blob in **Vercel Blob** (`s/<ts>-<id>.json`); listing is one `list()` call,
-  contents are cached in the warm function. No database to provision.
+- Confessions live in a single `data.json` in a **private GitHub repo** (`GH_REPO`, written with `GH_TOKEN` through the
+  Contents API, SHA-checked so concurrent posts retry instead of clobbering). Every confession is a commit, so the
+  history is the backup. Reads are cached 2s per function instance to stay far under GitHub's 5,000 req/h limit.
+  (The first version used Vercel Blob; Vercel suspended that store mid-party for exceeding the Hobby usage caps,
+  which made writes fail and new blobs unreadable. Don't poll Blob `list()` every few seconds on Hobby.)
 - The wall polls `/api/list?since=<ts>` every 2.5s, adds new bubbles, removes deleted ones, shows the newest
   60 and rotates older ones back in every 15s. Each bubble has a clone in every panel, positioned on one
   virtual strip (3 x panel width), so it crosses the seam between projectors seamlessly.
-- The video is a 56 MB muted H.264 MP4 on Vercel Blob (transcoded from the 397 MB original). The wall downloads
+- The video is a 56 MB muted H.264 MP4 served by the site itself (`public/villain.mp4`, gitignored, uploaded by
+  `vercel deploy`; transcoded from the 397 MB original). The wall downloads
   it once into memory and starts the copies a third of the loop apart (A, B, C each show a different part;
   `?stagger=0` for in-sync), re-checking every 3s so the offsets never drift. After the first load it keeps looping even if the WiFi drops.
 - The wall checks the deployment id on every poll and reloads itself ~15s after a new version is deployed, so you
@@ -105,7 +110,8 @@ Deleted bubbles vanish from the wall within a few seconds.
 
 ```sh
 npm install
-vercel env pull .env.local   # BLOB_READ_WRITE_TOKEN, ADMIN_KEY
+vercel env pull .env.local   # GH_TOKEN, GH_REPO, ADMIN_KEY
+# put the transcoded video at public/villain.mp4 before deploying (it is not in git)
 vercel dev
 vercel deploy --prod
 ```
