@@ -36,6 +36,7 @@ button:disabled{opacity:.5}
 <div class="bar">
   <input id="key" type="password" placeholder="admin key" autocomplete="off">
   <button id="save">Save key</button>
+  <button id="toggle" type="button">…</button>
 </div>
 <div id="msg"></div>
 <h2>Pending <span class="n" id="npending">0</span> <button class="all" id="approveall" type="button">Approve all</button></h2>
@@ -58,6 +59,9 @@ button:disabled{opacity:.5}
     if (!r.ok) { msg.textContent = d.error || ('HTTP ' + r.status); if (btn) btn.disabled = false; return false; }
     return true;
   }
+  let closed = null; const toggle = document.getElementById('toggle');
+  function paintToggle() { toggle.textContent = closed === null ? '…' : closed ? 'Reopen submissions' : 'Close submissions'; toggle.className = closed ? 'ok' : 'del'; }
+  toggle.onclick = async e => { if (closed === null) return; if (await act('PATCH', `closed=${closed ? 0 : 1}`, e.target)) { closed = !closed; paintToggle(); msg.textContent = closed ? 'Submissions closed. The QR is hidden on the wall.' : 'Submissions open again.'; } e.target.disabled = false; };
   document.getElementById('approveall').onclick = async e => { if (await act('PATCH', 'all=1', e.target)) { msg.textContent = ''; await refresh(); } e.target.disabled = false; };
   function row(i) {
     const el = document.createElement('div'); el.className = 'item' + (i.approved ? '' : ' pending');
@@ -80,6 +84,7 @@ button:disabled{opacity:.5}
       const r = await fetch(`/api/list?all=1&key=${k()}`, { cache: 'no-store' });
       if (r.status === 401) { msg.textContent = 'Wrong admin key.'; return; }
       const d = await r.json();
+      closed = !!d.closed; paintToggle();
       const items = (d.items || []).slice().reverse();
       const pending = items.filter(i => !i.approved), live = items.filter(i => i.approved);
       document.getElementById('npending').textContent = pending.length; document.getElementById('nlive').textContent = live.length;

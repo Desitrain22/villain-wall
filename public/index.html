@@ -359,6 +359,7 @@ body.dragging #drop{display:flex}
       if (!r.ok) throw new Error('HTTP ' + r.status);
       const d = await r.json();
       checkBuild(d.build);
+      document.querySelectorAll('.qrbox').forEach(q => q.style.display = d.closed ? 'none' : '');
       const live = new Set(d.ids || []);
       if (d.complete && Array.isArray(d.ids)) for (const [id, item] of allItems) if (!item.demo && !live.has(id)) {
         allItems.delete(id);

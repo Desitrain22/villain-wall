@@ -51,6 +51,11 @@ button:disabled{opacity:.6}
   <button id="go" type="submit">Confess 😈</button>
   <div class="err" id="err"></div>
 </form>
+<section class="done" id="closed" style="display:none">
+  <div class="big">🔒</div>
+  <h2>CONFESSIONS ARE CLOSED</h2>
+  <p>The host has closed the wall for the night. Thanks for being evil.</p>
+</section>
 <section class="done" id="done">
   <div class="big">😈</div>
   <h2>IT'S IN THE QUEUE</h2>
@@ -64,6 +69,9 @@ button:disabled{opacity:.6}
   const cnt = document.getElementById('cnt'), err = document.getElementById('err'), go = document.getElementById('go');
   const done = document.getElementById('done'), where = document.getElementById('where');
   try { name.value = localStorage.getItem('vw-name') || ''; } catch {}
+  const closedEl = document.getElementById('closed');
+  const showClosed = () => { f.style.display = 'none'; done.style.display = 'none'; closedEl.style.display = 'block'; };
+  fetch('/api/list', { cache: 'no-store' }).then(r => r.json()).then(d => { if (d.closed) showClosed(); }).catch(() => {});
   text.addEventListener('input', () => cnt.textContent = text.value.length);
   f.addEventListener('submit', async e => {
     e.preventDefault(); err.textContent = '';
@@ -74,6 +82,7 @@ button:disabled{opacity:.6}
     try {
       const r = await fetch('/api/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: n, text: t }) });
       const d = await r.json().catch(() => ({}));
+      if (r.status === 403 && d.closed) { showClosed(); return; }
       if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
       try { localStorage.setItem('vw-name', n); } catch {}
       f.style.display = 'none'; done.style.display = 'block'; window.scrollTo(0, 0);

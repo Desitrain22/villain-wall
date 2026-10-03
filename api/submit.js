@@ -1,4 +1,4 @@
-import { addSubmission, deleteSubmission, approveSubmission, approveAll, makeId } from '../lib/store.js';
+import { addSubmission, deleteSubmission, approveSubmission, approveAll, isClosed, setClosed, makeId } from '../lib/store.js';
 
 const SCREENS = new Set(['A', 'B', 'C']);
 // Light per-IP throttle (per warm instance). Venue WiFi puts every guest behind one IP, so keep it generous: 60/min.
@@ -31,6 +31,7 @@ export default async function handler(req, res) {
   if (req.method === 'PATCH') {
     const key = String(req.query.key || '');
     if (!process.env.ADMIN_KEY || key !== process.env.ADMIN_KEY) return res.status(401).json({ error: 'bad key' });
+    if (req.query.closed !== undefined) { await setClosed(String(req.query.closed) === '1'); return res.status(200).json({ ok: true, closed: String(req.query.closed) === '1' }); }
     if (req.query.all === '1') { await approveAll(); return res.status(200).json({ ok: true }); }
     const ok = await approveSubmission(String(req.query.id || ''));
     return res.status(200).json({ ok });
@@ -43,6 +44,7 @@ export default async function handler(req, res) {
   }
 
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
+  if (await isClosed()) return res.status(403).json({ error: 'Confessions are closed for the night. Thanks for being evil.', closed: true });
   const ip = String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim();
   if (throttled(ip)) return res.status(429).json({ error: 'Slow down, villain. Try again in a minute.' });
 
