@@ -336,7 +336,7 @@ body.dragging #drop{display:flex}
       const d = await r.json();
       checkBuild(d.build);
       const live = new Set(d.ids || []);
-      for (const [id, item] of allItems) if (!item.demo && !live.has(id)) {
+      if (d.complete && Array.isArray(d.ids)) for (const [id, item] of allItems) if (!item.demo && !live.has(id)) {
         allItems.delete(id);
         for (const b of [...bubbles]) if (b.item.id === id) removeBubble(b);
       }

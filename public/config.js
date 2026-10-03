@@ -1,6 +1,6 @@
 // Edit and redeploy to change defaults. URL params override these.
 window.VILLAIN_CONFIG = {
-  video: "https://50vff2ln10u38mac.public.blob.vercel-storage.com/villain.mp4",   // direct .mp4 URL (hosted on Vercel Blob)
+  video: "/villain.mp4",    // served by the site itself (56 MB, deployed with the app)
   layout: "grid",           // grid (2x2 quadrants) | row (1x3) | single
   order: "",                // e.g. "A,B,C,X" for grid, "A,B,C" for row. X = video only
   yt: "Il-QdvRYFrM",        // YouTube fallback: open /?yt=1 to use it instead of the mp4

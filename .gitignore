@@ -3,3 +3,4 @@ node_modules
 .env*.local
 .DS_Store
 .admin-key.txt
+public/villain.mp4
