@@ -10,7 +10,7 @@ continuous wall: bubbles drift from projector to projector and bounce off the fa
 |---|---|
 | `/` | The wall. Open this on the projector laptop. |
 | `/submit` | The phone form guests reach from the QR code. |
-| `/admin` | Delete a confession (needs the admin key). |
+| `/admin` | Approve or delete confessions (needs the admin key). New ones wait here. |
 
 ## 1. Put it on the projectors (venue laptop)
 
@@ -81,11 +81,15 @@ URL params override `public/config.js`:
 `?layout=grid|row|single` `&order=A,B,C,X` `&screen=B` `&qr=B|all` `&qrpos=br|bl|tr|tl|c`
 `&video=https://…mp4` `&yt=1` (YouTube fallback) `&stagger=1|0|<seconds>` (A/B/C offset in the loop) `&max=60` (bubbles on the wall at once) `&poll=2500` `&demo=1` `&debug=1`
 
-## 3. Moderation
+## 3. Moderation (all submissions are gated)
 
-`https://villain-wall.vercel.app/admin` → paste the admin key (in Vercel env `ADMIN_KEY`) → Delete.
-Deleted bubbles vanish from the wall within a few seconds. Deletions are commits too, so nothing is ever truly gone:
-`git log` in the data repo has every version.
+Nothing reaches the wall until the host approves it. Open `https://villain-wall.vercel.app/admin` on your phone,
+paste the admin key (Vercel env `ADMIN_KEY`), and the **Pending** list shows every new confession with
+**Approve** / **Delete** buttons, plus **Approve all**. The tab title shows the pending count. Approved items appear on
+the wall within a few seconds; deleted ones vanish just as fast. Hard slurs are rejected automatically at submit time
+(`SLURS` in `api/submit.js`).
+
+Approvals and deletions are commits in the data repo, so nothing is ever truly gone: `git log` there has every version.
 
 ## How it works
 

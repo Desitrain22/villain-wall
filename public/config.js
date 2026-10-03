@@ -7,7 +7,7 @@ window.VILLAIN_CONFIG = {
   qr: "B",                  // which screen(s) show the QR code: A,B,C or all
   qrpos: "br",              // br | bl | tr | tl | c
   stagger: 1,               // 1 = A/B/C each start a third of the loop apart, 0 = all in sync, or seconds between screens
-  max: 60,                  // max bubbles flying across the whole wall at once
+  max: 21,                  // bubbles flying at once (7 per screen); the rest rotate in
   poll: 2500,               // ms between checks for new confessions
-  rotate: 15000             // ms between swapping in older confessions when > max
+  rotate: 5000              // ms between swapping in older confessions when > max
 };

@@ -3,23 +3,31 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Villain Wall · admin</title>
+<title>Villain Wall · moderation</title>
 <style>
 :root{color-scheme:dark}
-body{margin:0;background:#0a0014;color:#fff;font-family:system-ui,sans-serif;padding:16px}
-main{max-width:720px;margin:0 auto}
-h1{font-size:20px;margin:0 0 12px;color:#39ff14}
-.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
-input{font:inherit;padding:10px;border-radius:10px;border:1px solid #b026ff;background:#160028;color:#fff;flex:1;min-width:160px}
-button{font:inherit;padding:10px 14px;border-radius:10px;border:0;background:#b026ff;color:#fff;cursor:pointer;font-weight:700}
+*{box-sizing:border-box}
+body{margin:0;background:#0a0014;color:#fff;font-family:system-ui,sans-serif;padding:14px}
+main{max-width:760px;margin:0 auto}
+h1{font-size:20px;margin:0 0 10px;color:#39ff14}
+h2{font-size:14px;letter-spacing:.08em;text-transform:uppercase;color:#c9b3ff;margin:22px 0 8px;display:flex;align-items:center;gap:10px}
+h2 .n{background:#b026ff;color:#fff;border-radius:999px;padding:2px 10px;font-size:13px}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+input{font:inherit;padding:11px;border-radius:10px;border:1px solid #b026ff;background:#160028;color:#fff;flex:1;min-width:150px}
+button{font:inherit;padding:11px 14px;border-radius:10px;border:0;background:#b026ff;color:#fff;cursor:pointer;font-weight:700;min-height:44px}
+button.ok{background:#1f9d3a}
 button.del{background:#ff2a6d}
-.item{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid #2a0050;border-radius:12px;margin-bottom:8px;background:rgba(255,255,255,.04)}
-.item .s{font-weight:800;color:#39ff14;min-width:20px}
-.item .b{flex:1}
-.item .n{font-weight:800;color:#c9b3ff}
-.item .t{margin-top:2px}
+button.all{background:#39ff14;color:#0a0014}
+button:disabled{opacity:.5}
+.item{display:flex;gap:10px;align-items:center;padding:10px 12px;border:1px solid #2a0050;border-radius:12px;margin-bottom:8px;background:rgba(255,255,255,.04)}
+.item.pending{border-color:#b026ff;background:rgba(176,38,255,.12)}
+.item .b{flex:1;min-width:0}
+.item .nm{font-weight:800;color:#c9b3ff}
+.item .t{margin-top:2px;overflow-wrap:anywhere}
 .item time{font-size:12px;color:#888}
+.item .act{display:flex;gap:6px;flex-direction:column}
 #msg{color:#ff6b8a;font-weight:700;min-height:1.2em}
+.empty{color:#777;padding:8px 0}
 </style>
 </head>
 <body>
@@ -28,44 +36,62 @@ button.del{background:#ff2a6d}
 <div class="bar">
   <input id="key" type="password" placeholder="admin key" autocomplete="off">
   <button id="save">Save key</button>
-  <span id="count"></span>
 </div>
 <div id="msg"></div>
-<div id="list"></div>
+<h2>Pending <span class="n" id="npending">0</span> <button class="all" id="approveall" type="button">Approve all</button></h2>
+<div id="pending"></div>
+<h2>Live on the wall <span class="n" id="nlive">0</span></h2>
+<div id="live"></div>
 </main>
 <script>
 (() => {
-  const key = document.getElementById('key'), list = document.getElementById('list'), msg = document.getElementById('msg'), count = document.getElementById('count');
+  const key = document.getElementById('key'), msg = document.getElementById('msg');
+  const pendingEl = document.getElementById('pending'), liveEl = document.getElementById('live');
   try { key.value = localStorage.getItem('vw-admin') || ''; } catch {}
-  document.getElementById('save').onclick = () => { try { localStorage.setItem('vw-admin', key.value); } catch {} msg.textContent = 'Saved.'; setTimeout(() => msg.textContent = '', 1200); };
-  async function refresh() {
-    try {
-      const r = await fetch('/api/list', { cache: 'no-store' }); const d = await r.json();
-      const items = (d.items || []).slice().reverse();
-      count.textContent = items.length + ' confessions';
-      list.innerHTML = '';
-      for (const i of items) {
-        const el = document.createElement('div'); el.className = 'item';
-        const s = document.createElement('div'); s.className = 's'; s.textContent = i.screen;
-        const b = document.createElement('div'); b.className = 'b';
-        const n = document.createElement('div'); n.className = 'n'; n.textContent = i.name;
-        const t = document.createElement('div'); t.className = 't'; t.textContent = i.text;
-        const tm = document.createElement('time'); tm.textContent = new Date(i.ts).toLocaleTimeString();
-        b.append(n, t, tm);
-        const del = document.createElement('button'); del.className = 'del'; del.textContent = 'Delete';
-        del.onclick = async () => {
-          if (!key.value) { msg.textContent = 'Enter the admin key first.'; return; }
-          del.disabled = true;
-          const rr = await fetch(`/api/submit?id=${encodeURIComponent(i.id)}&key=${encodeURIComponent(key.value)}`, { method: 'DELETE' });
-          const dd = await rr.json().catch(() => ({}));
-          if (!rr.ok) { msg.textContent = dd.error || ('HTTP ' + rr.status); del.disabled = false; return; }
-          el.remove();
-        };
-        el.append(s, b, del); list.appendChild(el);
-      }
-    } catch (e) { msg.textContent = 'Could not load: ' + e.message; }
+  document.getElementById('save').onclick = () => { try { localStorage.setItem('vw-admin', key.value); } catch {} msg.textContent = 'Saved.'; setTimeout(() => msg.textContent = '', 1200); refresh(); };
+  const k = () => encodeURIComponent(key.value);
+  async function act(method, qs, btn) {
+    if (!key.value) { msg.textContent = 'Enter the admin key first.'; return false; }
+    if (btn) btn.disabled = true;
+    const r = await fetch(`/api/submit?${qs}&key=${k()}`, { method });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { msg.textContent = d.error || ('HTTP ' + r.status); if (btn) btn.disabled = false; return false; }
+    return true;
   }
-  refresh(); setInterval(refresh, 5000);
+  document.getElementById('approveall').onclick = async e => { if (await act('PATCH', 'all=1', e.target)) { msg.textContent = ''; await refresh(); } e.target.disabled = false; };
+  function row(i) {
+    const el = document.createElement('div'); el.className = 'item' + (i.approved ? '' : ' pending');
+    const b = document.createElement('div'); b.className = 'b';
+    const nm = document.createElement('div'); nm.className = 'nm'; nm.textContent = i.name;
+    const t = document.createElement('div'); t.className = 't'; t.textContent = i.text;
+    const tm = document.createElement('time'); tm.textContent = new Date(i.ts).toLocaleTimeString();
+    b.append(nm, t, tm);
+    const act_ = document.createElement('div'); act_.className = 'act';
+    if (!i.approved) { const ok = document.createElement('button'); ok.className = 'ok'; ok.textContent = 'Approve'; ok.onclick = async () => { if (await act('PATCH', `id=${encodeURIComponent(i.id)}`, ok)) { el.remove(); refresh(); } }; act_.appendChild(ok); }
+    const del = document.createElement('button'); del.className = 'del'; del.textContent = 'Delete'; del.onclick = async () => { if (await act('DELETE', `id=${encodeURIComponent(i.id)}`, del)) el.remove(); };
+    act_.appendChild(del);
+    el.append(b, act_); return el;
+  }
+  let busy = false;
+  async function refresh() {
+    if (busy) return; busy = true;
+    try {
+      if (!key.value) { msg.textContent = 'Enter the admin key to see the queue.'; return; }
+      const r = await fetch(`/api/list?all=1&key=${k()}`, { cache: 'no-store' });
+      if (r.status === 401) { msg.textContent = 'Wrong admin key.'; return; }
+      const d = await r.json();
+      const items = (d.items || []).slice().reverse();
+      const pending = items.filter(i => !i.approved), live = items.filter(i => i.approved);
+      document.getElementById('npending').textContent = pending.length; document.getElementById('nlive').textContent = live.length;
+      pendingEl.innerHTML = ''; liveEl.innerHTML = '';
+      if (!pending.length) pendingEl.innerHTML = '<div class="empty">Nothing waiting.</div>';
+      pending.forEach(i => pendingEl.appendChild(row(i))); live.forEach(i => liveEl.appendChild(row(i)));
+      if (msg.textContent.startsWith('Enter') || msg.textContent.startsWith('Wrong')) msg.textContent = '';
+      document.title = (pending.length ? `(${pending.length}) ` : '') + 'Villain Wall · moderation';
+    } catch (e) { msg.textContent = 'Could not load: ' + e.message; }
+    finally { busy = false; }
+  }
+  refresh(); setInterval(refresh, 4000);
 })();
 </script>
 </body>

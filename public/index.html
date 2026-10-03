@@ -22,10 +22,10 @@ body.nocursor{cursor:none}
 .panel iframe.yt{position:absolute;border:0;pointer-events:none}
 .panel .tint{position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 60%,rgba(0,0,0,.35) 100%);pointer-events:none}
 .bubbles{position:absolute;inset:0;overflow:hidden;z-index:2}
-.bubble{position:absolute;left:0;top:0;will-change:transform;max-width:calc(var(--pw) * .40 * var(--k,1));padding:calc(var(--ph)*.014*var(--k,1)) calc(var(--ph)*.026*var(--k,1));border-radius:calc(var(--ph)*.06);background:rgba(10,0,22,.66);border:calc(var(--ph)*.004) solid var(--c);box-shadow:0 0 calc(var(--ph)*.035) var(--c),inset 0 0 calc(var(--ph)*.02) rgba(255,255,255,.07);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);animation:pop .7s cubic-bezier(.2,1.6,.4,1) both;text-shadow:0 1px 4px #000}
+.bubble{position:absolute;left:0;top:0;will-change:transform;max-width:calc(var(--pw) * .36 * var(--k,1));padding:calc(var(--ph)*.012*var(--k,1)) calc(var(--ph)*.024*var(--k,1));border-radius:calc(var(--ph)*.06);background:rgba(10,0,22,.66);border:calc(var(--ph)*.004) solid var(--c);box-shadow:0 0 calc(var(--ph)*.035) var(--c),inset 0 0 calc(var(--ph)*.02) rgba(255,255,255,.07);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);animation:pop .7s cubic-bezier(.2,1.6,.4,1) both;text-shadow:0 1px 4px #000}
 .bubble.out{animation:fade .6s ease forwards}
-.bubble .n{display:block;font-weight:800;color:var(--c);font-size:calc(var(--ph)*.026*var(--k,1));letter-spacing:.05em;text-transform:uppercase;line-height:1.15}
-.bubble .t{display:block;font-weight:600;font-size:calc(var(--ph)*.036*var(--k,1));line-height:1.15;overflow-wrap:anywhere}
+.bubble .n{display:block;font-weight:800;color:var(--c);font-size:calc(var(--ph)*.023*var(--k,1));letter-spacing:.05em;text-transform:uppercase;line-height:1.15}
+.bubble .t{display:block;font-weight:600;font-size:calc(var(--ph)*.031*var(--k,1));line-height:1.15;overflow-wrap:anywhere}
 @keyframes pop{0%{opacity:0;scale:.2}100%{opacity:1;scale:1}}
 @keyframes fade{to{opacity:0;scale:.6}}
 .qrbox{position:absolute;z-index:5;background:#fff;color:#111;border-radius:calc(var(--ph)*.02);padding:calc(var(--ph)*.018) calc(var(--ph)*.022);display:flex;flex-direction:column;align-items:center;gap:calc(var(--ph)*.008);box-shadow:0 0 calc(var(--ph)*.06) rgba(176,38,255,.9),0 0 0 calc(var(--ph)*.006) #b026ff}
@@ -71,7 +71,7 @@ body.dragging #drop{display:flex}
     <span><kbd>D</kbd></span><span>Drop a demo bubble (not saved). Bubbles roam freely across A → B → C as one wide wall.</span>
     <span><kbd>H</kbd> / <kbd>?</kbd></span><span>Show / hide this help</span>
   </div>
-  <p style="margin:12px 0 0;color:#c9b3ff">URL params: <code>?layout=grid|row|single</code> <code>&amp;order=A,B,C,X</code> <code>&amp;screen=B|ALL</code> <code>&amp;qr=B|all</code> <code>&amp;qrpos=br|bl|tr|tl|c</code> <code>&amp;video=https://…mp4</code> <code>&amp;yt=1</code> (YouTube fallback) <code>&amp;stagger=1|0|&lt;seconds&gt;</code> (A/B/C show different parts of the loop) <code>&amp;max=60</code> <code>&amp;debug=1</code></p>
+  <p style="margin:12px 0 0;color:#c9b3ff">URL params: <code>?layout=grid|row|single</code> <code>&amp;order=A,B,C,X</code> <code>&amp;screen=B|ALL</code> <code>&amp;qr=B|all</code> <code>&amp;qrpos=br|bl|tr|tl|c</code> <code>&amp;video=https://…mp4</code> <code>&amp;yt=1</code> (YouTube fallback) <code>&amp;stagger=1|0|&lt;seconds&gt;</code> (A/B/C show different parts of the loop) <code>&amp;max=21</code> <code>&amp;debug=1</code></p>
   <p id="helpcfg" style="margin:8px 0 0;color:#9a8ab8;font-size:13px"></p>
 </div>
 <div id="status"></div>
@@ -90,9 +90,9 @@ body.dragging #drop{display:flex}
   const ORDER = String(get('order', defaultOrder)).toUpperCase().split(',').map(s => s.trim()).filter(Boolean);
   const QR_ON = String(get('qr', 'B')).toUpperCase().split(',').map(s => s.trim());
   const QR_POS = String(get('qrpos', 'br'));
-  const MAX = Math.max(1, +get('max', 60) || 60);
+  const MAX = Math.max(1, +get('max', 21) || 21);
   const POLL = Math.max(800, +get('poll', 2500) || 2500);
-  const ROTATE = Math.max(3000, +get('rotate', 15000) || 15000);
+  const ROTATE = Math.max(2000, +get('rotate', 5000) || 5000);
   const SPEED = +get('speed', 1) || 1;
   const stRaw = String(get('stagger', '1')).toLowerCase();
   const STAGGER = (stRaw === '0' || stRaw === 'off' || stRaw === 'false') ? 0 : (parseFloat(stRaw) > 1 ? parseFloat(stRaw) : 1); // 0 = in sync, 1 = even thirds, >1 = seconds per screen
@@ -355,7 +355,7 @@ body.dragging #drop{display:flex}
   }
   async function poll() {
     try {
-      const r = await fetch(`/api/list?since=${lastTs}`, { cache: 'no-store' });
+      const r = await fetch('/api/list', { cache: 'no-store' });
       if (!r.ok) throw new Error('HTTP ' + r.status);
       const d = await r.json();
       checkBuild(d.build);
@@ -368,7 +368,7 @@ body.dragging #drop{display:flex}
       for (const i of fresh) { allItems.set(i.id, i); lastTs = Math.max(lastTs, i.ts); }
       if (first) { fresh.slice(-MAX).forEach(show); first = false; }   // newest MAX on first paint; the rest rotate in
       else fresh.forEach(show);
-      setStatus('ok', `${allItems.size} confessions · ${bubbles.length} flying · ${new Date().toLocaleTimeString()}`);
+      setStatus('ok', `${allItems.size} live · ${d.pending || 0} pending · ${bubbles.length} flying · ${new Date().toLocaleTimeString()}`);
     } catch (e) { setStatus('err', 'offline: ' + e.message); }
     setTimeout(poll, POLL);
   }

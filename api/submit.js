@@ -1,4 +1,4 @@
-import { addSubmission, deleteSubmission, makeId } from '../lib/store.js';
+import { addSubmission, deleteSubmission, approveSubmission, approveAll, makeId } from '../lib/store.js';
 
 const SCREENS = new Set(['A', 'B', 'C']);
 // Light per-IP throttle (per warm instance). Venue WiFi puts every guest behind one IP, so keep it generous: 60/min.
@@ -11,14 +11,30 @@ function throttled(ip) {
   return arr.length > limit;
 }
 const clean = (s, max) => String(s ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
+// Hard slurs are rejected outright (evil is the point; hate isn't). Admin can still delete anything else.
+const SLURS = [
+  /\bn+\s*[i1!|]+(?:\s*[gq9]){2,}\s*(?:[ae3@]+[rh]?[sz]*|[a@4]+[sz]*)\b/i,  // n-word, plurals, spaced/leet variants (not "Niger"/"snigger")
+  /\bn[*#@]+[gq9]+[ae3]+r/i,                                            // n*gger style
+  /\bf+\s*[a@4]+(?:\s*[gq9]){1,}\s*[oi0]*t+s?\b/i,                    // f-slur
+  /\bk+[iy1!]+k+[e3]+s?\b/i, /\bsp+[i1!]+c+k*s?\b/i, /\bch+[i1!]+n+k+s?\b/i, /\bw+[e3]+t+b+[a@4]+c+k+s?\b/i,
+  /\bt+r+[a@4]+n+n+[yi1]+e?s?\b/i,
+];
+const hateful = s => SLURS.some(r => r.test(s));
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, DELETE, PATCH, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(204).end();
 
+  if (req.method === 'PATCH') {
+    const key = String(req.query.key || '');
+    if (!process.env.ADMIN_KEY || key !== process.env.ADMIN_KEY) return res.status(401).json({ error: 'bad key' });
+    if (req.query.all === '1') { await approveAll(); return res.status(200).json({ ok: true }); }
+    const ok = await approveSubmission(String(req.query.id || ''));
+    return res.status(200).json({ ok });
+  }
   if (req.method === 'DELETE') {
     const key = String(req.query.key || '');
     if (!process.env.ADMIN_KEY || key !== process.env.ADMIN_KEY) return res.status(401).json({ error: 'bad key' });
@@ -39,8 +55,9 @@ export default async function handler(req, res) {
   let screen = String(body.screen || '').toUpperCase();
   if (!SCREENS.has(screen)) screen = ['A', 'B', 'C'][Math.floor(Math.random() * 3)];
   if (text.length < 2) return res.status(400).json({ error: 'Tell us what you did.' });
+  if (hateful(text) || hateful(name)) return res.status(400).json({ error: 'Keep it evil, not hateful. Try again without the slur.' });
 
-  const item = { id: makeId(), ts: Date.now(), name, text, screen };
+  const item = { id: makeId(), ts: Date.now(), name, text, screen, approved: false }; // gated: host approves on /admin
   try {
     await addSubmission(item);
   } catch (e) {
