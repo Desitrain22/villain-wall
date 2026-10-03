@@ -78,13 +78,16 @@ button:disabled{opacity:.6}
     const n = name.value.trim(), t = text.value.trim();
     if (!n) { err.textContent = 'Tell us who you are (or make up a name).'; name.focus(); return; }
     if (t.length < 2) { err.textContent = 'Come on, confess something.'; text.focus(); return; }
-    go.disabled = true; go.textContent = 'Sending…';
+    go.disabled = true; go.textContent = 'Judging your evil…';
     try {
       const r = await fetch('/api/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: n, text: t }) });
       const d = await r.json().catch(() => ({}));
       if (r.status === 403 && d.closed) { showClosed(); return; }
       if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
       try { localStorage.setItem('vw-name', n); } catch {}
+      const live = !!(d.item && d.item.approved);
+      done.querySelector('h2').textContent = live ? "IT'S OUT THERE" : "IT'S IN THE QUEUE";
+      where.textContent = live ? 'Your confession is flying across the wall right now.' : 'The host is taking a look first. Watch the wall.';
       f.style.display = 'none'; done.style.display = 'block'; window.scrollTo(0, 0);
     } catch (e2) { err.textContent = e2.message || 'Something broke. Try again.'; }
     go.disabled = false; go.textContent = 'Confess 😈';

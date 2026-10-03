@@ -5,7 +5,9 @@
   "type": "module",
   "description": "Party projector wall: looping villain video + QR-driven floating confession bubbles",
   "dependencies": {
-    "@vercel/blob": "^1.1.1"
+    "@anthropic-ai/sdk": "^0.131.0",
+    "@vercel/blob": "^1.1.1",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "qrcode-generator": "^1.4.4"

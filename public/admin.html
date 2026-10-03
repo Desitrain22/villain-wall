@@ -68,7 +68,7 @@ button:disabled{opacity:.5}
     const b = document.createElement('div'); b.className = 'b';
     const nm = document.createElement('div'); nm.className = 'nm'; nm.textContent = i.name;
     const t = document.createElement('div'); t.className = 't'; t.textContent = i.text;
-    const tm = document.createElement('time'); tm.textContent = new Date(i.ts).toLocaleTimeString();
+    const tm = document.createElement('time'); tm.textContent = new Date(i.ts).toLocaleTimeString() + (i.mod ? ` · AI: ${i.mod.verdict}${i.mod.reason ? ' — ' + i.mod.reason : ''}` : ' · AI: not checked');
     b.append(nm, t, tm);
     const act_ = document.createElement('div'); act_.className = 'act';
     if (!i.approved) { const ok = document.createElement('button'); ok.className = 'ok'; ok.textContent = 'Approve'; ok.onclick = async () => { if (await act('PATCH', `id=${encodeURIComponent(i.id)}`, ok)) { el.remove(); refresh(); } }; act_.appendChild(ok); }

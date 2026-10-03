@@ -1,4 +1,5 @@
 import { addSubmission, deleteSubmission, approveSubmission, approveAll, isClosed, setClosed, makeId } from '../lib/store.js';
+import { moderate } from '../lib/moderate.js';
 
 const SCREENS = new Set(['A', 'B', 'C']);
 // Light per-IP throttle (per warm instance). Venue WiFi puts every guest behind one IP, so keep it generous: 60/min.
@@ -59,7 +60,10 @@ export default async function handler(req, res) {
   if (text.length < 2) return res.status(400).json({ error: 'Tell us what you did.' });
   if (hateful(text) || hateful(name)) return res.status(400).json({ error: 'Keep it evil, not hateful. Try again without the slur.' });
 
-  const item = { id: makeId(), ts: Date.now(), name, text, screen, approved: false }; // gated: host approves on /admin
+  // LLM gate: block = refused now, review = wait for the host, allow = straight to the wall
+  const mod = await moderate({ name, text });
+  if (mod.verdict === 'block') return res.status(400).json({ error: 'Keep it evil, not hateful. That one stays off the wall.', blocked: true });
+  const item = { id: makeId(), ts: Date.now(), name, text, screen, approved: mod.verdict === 'allow', mod: { verdict: mod.verdict, reason: mod.reason, model: mod.model, ms: mod.ms } };
   try {
     await addSubmission(item);
   } catch (e) {
