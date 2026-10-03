@@ -6,7 +6,7 @@ window.VILLAIN_CONFIG = {
   yt: "Il-QdvRYFrM",        // YouTube fallback: open /?yt=1 to use it instead of the mp4
   qr: "B",                  // which screen(s) show the QR code: A,B,C or all
   qrpos: "br",              // br | bl | tr | tl | c
-  max: 24,                  // max bubbles per screen at once
+  max: 60,                  // max bubbles flying across the whole wall at once
   poll: 2500,               // ms between checks for new confessions
   rotate: 15000             // ms between swapping in older confessions when > max
 };

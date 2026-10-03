@@ -1,7 +1,8 @@
 # Villain Wall
 
 Party projector wall: a looping villain video on three screens, a QR code on the center one,
-and guests' confessions floating around as bubbles.
+and guests' confessions flying across all three screens as bubbles. A, B and C are treated as one
+continuous wall: bubbles drift from projector to projector and bounce off the far ends.
 
 **Live:** https://villain-wall.vercel.app
 
@@ -77,7 +78,7 @@ windows and the feed freezes). Open the wall at `/?layout=grid` so its four quad
 
 URL params override `public/config.js`:
 `?layout=grid|row|single` `&order=A,B,C,X` `&screen=B` `&qr=B|all` `&qrpos=br|bl|tr|tl|c`
-`&video=https://…mp4` `&yt=1` (YouTube fallback) `&max=24` `&poll=2500` `&demo=1` `&debug=1`
+`&video=https://…mp4` `&yt=1` (YouTube fallback) `&max=60` (bubbles on the wall at once) `&poll=2500` `&demo=1` `&debug=1`
 
 ## 3. Moderation
 
@@ -90,7 +91,8 @@ Deleted bubbles vanish from the wall within a few seconds.
 - Each confession is one small JSON blob in **Vercel Blob** (`s/<ts>-<id>.json`); listing is one `list()` call,
   contents are cached in the warm function. No database to provision.
 - The wall polls `/api/list?since=<ts>` every 2.5s, adds new bubbles, removes deleted ones, shows the newest
-  24 per screen and rotates older ones back in every 15s.
+  60 and rotates older ones back in every 15s. Each bubble has a clone in every panel, positioned on one
+  virtual strip (3 x panel width), so it crosses the seam between projectors seamlessly.
 - The video is a 56 MB muted H.264 MP4 on Vercel Blob (transcoded from the 397 MB original). Four `<video>`
   copies play it and are re-synced every 3s so adjacent projectors match.
 

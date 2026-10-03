@@ -42,25 +42,19 @@ button:disabled{opacity:.6}
 <main>
 <form id="f" novalidate>
   <h1>VILLAIN WALL</h1>
-  <p class="sub">Confess. It'll dance on the big screens.</p>
+  <p class="sub">Confess. It'll fly across the big screens.</p>
   <label class="lbl" for="name">Name:</label>
   <input type="text" id="name" name="name" maxlength="40" autocomplete="nickname" placeholder="Your villain name" required>
   <label class="lbl" for="text">What's your most evil thing you did all year?</label>
   <textarea id="text" name="text" maxlength="180" placeholder="Go on. We won't tell." required></textarea>
   <div class="count"><span id="cnt">0</span>/180</div>
-  <span class="lbl">Which screen should your evil dance on?</span>
-  <div class="screens">
-    <label><input type="radio" name="screen" value="A"><span><b>A</b><small>Left</small></span></label>
-    <label><input type="radio" name="screen" value="B" checked><span><b>B</b><small>Center</small></span></label>
-    <label><input type="radio" name="screen" value="C"><span><b>C</b><small>Right</small></span></label>
-  </div>
   <button id="go" type="submit">Confess 😈</button>
   <div class="err" id="err"></div>
 </form>
 <section class="done" id="done">
   <div class="big">😈</div>
   <h2>IT'S OUT THERE</h2>
-  <p id="where">Your confession is now dancing on Screen B.</p>
+  <p id="where">Your confession is now flying across the wall.</p>
   <button class="ghost" id="again" type="button">Confess something worse</button>
 </section>
 </main>
@@ -71,20 +65,17 @@ button:disabled{opacity:.6}
   const done = document.getElementById('done'), where = document.getElementById('where');
   try { name.value = localStorage.getItem('vw-name') || ''; } catch {}
   text.addEventListener('input', () => cnt.textContent = text.value.length);
-  const SCREENS = { A: 'A (left)', B: 'B (center)', C: 'C (right)' };
   f.addEventListener('submit', async e => {
     e.preventDefault(); err.textContent = '';
     const n = name.value.trim(), t = text.value.trim();
-    const screen = (f.querySelector('input[name=screen]:checked') || {}).value || 'B';
     if (!n) { err.textContent = 'Tell us who you are (or make up a name).'; name.focus(); return; }
     if (t.length < 2) { err.textContent = 'Come on, confess something.'; text.focus(); return; }
     go.disabled = true; go.textContent = 'Sending…';
     try {
-      const r = await fetch('/api/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: n, text: t, screen }) });
+      const r = await fetch('/api/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: n, text: t }) });
       const d = await r.json().catch(() => ({}));
       if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
       try { localStorage.setItem('vw-name', n); } catch {}
-      where.textContent = `Your confession is now dancing on Screen ${SCREENS[d.item.screen] || d.item.screen}.`;
       f.style.display = 'none'; done.style.display = 'block'; window.scrollTo(0, 0);
     } catch (e2) { err.textContent = e2.message || 'Something broke. Try again.'; }
     go.disabled = false; go.textContent = 'Confess 😈';

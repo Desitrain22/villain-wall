@@ -68,10 +68,10 @@ body.dragging #drop{display:flex}
     <span><kbd>Q</kbd></span><span>QR on center only ↔ QR on all screens</span>
     <span><kbd>V</kbd></span><span>Load a local video file (or drag &amp; drop one onto the page). Remembered on reload.</span>
     <span><kbd>X</kbd></span><span>Forget local video, go back to the hosted default</span>
-    <span><kbd>D</kbd></span><span>Drop a demo bubble (not saved)</span>
+    <span><kbd>D</kbd></span><span>Drop a demo bubble (not saved). Bubbles roam freely across A → B → C as one wide wall.</span>
     <span><kbd>H</kbd> / <kbd>?</kbd></span><span>Show / hide this help</span>
   </div>
-  <p style="margin:12px 0 0;color:#c9b3ff">URL params: <code>?layout=grid|row|single</code> <code>&amp;order=A,B,C,X</code> <code>&amp;screen=B|ALL</code> <code>&amp;qr=B|all</code> <code>&amp;qrpos=br|bl|tr|tl|c</code> <code>&amp;video=https://…mp4</code> <code>&amp;yt=1</code> (YouTube fallback) <code>&amp;max=24</code> <code>&amp;debug=1</code></p>
+  <p style="margin:12px 0 0;color:#c9b3ff">URL params: <code>?layout=grid|row|single</code> <code>&amp;order=A,B,C,X</code> <code>&amp;screen=B|ALL</code> <code>&amp;qr=B|all</code> <code>&amp;qrpos=br|bl|tr|tl|c</code> <code>&amp;video=https://…mp4</code> <code>&amp;yt=1</code> (YouTube fallback) <code>&amp;max=60</code> <code>&amp;debug=1</code></p>
   <p id="helpcfg" style="margin:8px 0 0;color:#9a8ab8;font-size:13px"></p>
 </div>
 <div id="status"></div>
@@ -90,7 +90,7 @@ body.dragging #drop{display:flex}
   const ORDER = String(get('order', defaultOrder)).toUpperCase().split(',').map(s => s.trim()).filter(Boolean);
   const QR_ON = String(get('qr', 'B')).toUpperCase().split(',').map(s => s.trim());
   const QR_POS = String(get('qrpos', 'br'));
-  const MAX = Math.max(1, +get('max', 24) || 24);
+  const MAX = Math.max(1, +get('max', 60) || 60);
   const POLL = Math.max(800, +get('poll', 2500) || 2500);
   const ROTATE = Math.max(3000, +get('rotate', 15000) || 15000);
   const SPEED = +get('speed', 1) || 1;
@@ -121,8 +121,8 @@ body.dragging #drop{display:flex}
       const p = panels.find(p => p.el === e.target); if (!p) continue;
       p.w = e.contentRect.width; p.h = e.contentRect.height;
       p.el.style.setProperty('--pw', p.w + 'px'); p.el.style.setProperty('--ph', p.h + 'px');
-      for (const b of p.bubbles) { b.w = b.el.offsetWidth; b.h = b.el.offsetHeight; b.x = Math.min(b.x, Math.max(0, p.w - b.w)); b.y = Math.min(b.y, Math.max(0, p.h - b.h)); }
     }
+    handleResize();
     fitYT();
   });
   panels.forEach(p => ro.observe(p.el));
@@ -188,65 +188,96 @@ body.dragging #drop{display:flex}
   const kick = () => panels.forEach(p => p.video && p.video.paused && p.video.src && p.video.play().catch(() => {}));
   addEventListener('click', kick); addEventListener('keydown', kick);
 
-  // ---------- bubbles ----------
-  const allItems = new Map();
-  let lastTs = 0, first = true;
-  const panelsFor = s => panels.filter(p => p.screen === s || p.screen === 'ALL');
+  // ---------- bubbles: one continuous strip across A | B | C ----------
+  // Screens A, B, C are physically side by side, so they form ONE virtual canvas
+  // (present segments x panel width). Every bubble has a clone in each bubble panel;
+  // the clone is positioned at (x - segmentOffset) and clipped by the panel, so a
+  // bubble slides seamlessly from one projector onto the next.
+  const PRESENT = ['A', 'B', 'C'].filter(sc => panels.some(p => p.screen === sc));
+  const SEGIDX = Object.fromEntries(PRESENT.map((sc, i) => [sc, i]));
+  const SEGS = Math.max(1, PRESENT.length);
+  const bubblePanels = panels.filter(p => p.screen in SEGIDX || p.screen === 'ALL');
+  const refPanel = panels.find(p => p.screen in SEGIDX) || bubblePanels[0] || null;
+  const strip = () => refPanel ? { w: refPanel.w * SEGS, h: refPanel.h, segw: refPanel.w } : { w: 1, h: 1, segw: 1 };
 
-  function makeBubble(p, item) {
-    const el = document.createElement('div');
-    el.className = 'bubble';
-    el.style.setProperty('--c', COLORS[hash(item.id) % COLORS.length]);
-    const n = document.createElement('span'); n.className = 'n'; n.textContent = item.name;
-    const t = document.createElement('span'); t.className = 't'; t.textContent = '“' + item.text + '”';
-    el.append(n, t);
-    p.bubblesEl.appendChild(el);
-    const w = el.offsetWidth, h = el.offsetHeight;
-    const k = SPEED * (p.h / 540);
-    const b = { el, item, w, h,
-      x: rand(0, Math.max(1, p.w - w)), y: rand(0, Math.max(1, p.h - h)),
-      vx: rand(14, 34) * (Math.random() < .5 ? -1 : 1) * k,
-      vy: rand(10, 26) * (Math.random() < .5 ? -1 : 1) * k,
-      ph: Math.random() * Math.PI * 2, rot: rand(1.5, 4.5), bob: rand(.8, 1.6) };
-    el.style.transform = `translate3d(${b.x}px,${b.y}px,0)`;
-    p.bubbles.push(b);
-    item.lastShown = Date.now();
+  const allItems = new Map();
+  const bubbles = [];
+  let lastTs = 0, first = true, prevStrip = null;
+
+  function makeBubble(item) {
+    const S = strip();
+    const color = COLORS[hash(item.id) % COLORS.length];
+    const b = { item, clones: [], w: 0, h: 0, x: 0, y: 0, vx: 0, vy: 0, ph: Math.random() * Math.PI * 2, rot: rand(1.5, 4.5), bob: rand(.8, 1.6) };
+    for (const p of bubblePanels) {
+      const el = document.createElement('div');
+      el.className = 'bubble'; el.style.setProperty('--c', color);
+      const n = document.createElement('span'); n.className = 'n'; n.textContent = item.name;
+      const t = document.createElement('span'); t.className = 't'; t.textContent = '“' + item.text + '”';
+      el.append(n, t); p.bubblesEl.appendChild(el);
+      b.clones.push({ p, el, hidden: false });
+    }
+    const ref = (b.clones.find(c => c.p === refPanel) || b.clones[0]);
+    if (ref) { b.w = ref.el.offsetWidth; b.h = ref.el.offsetHeight; }
+    const k = SPEED * (S.h / 540);
+    b.x = rand(0, Math.max(1, S.w - b.w)); b.y = rand(0, Math.max(1, S.h - b.h));
+    b.vx = rand(24, 56) * (Math.random() < .5 ? -1 : 1) * k;
+    b.vy = rand(8, 24) * (Math.random() < .5 ? -1 : 1) * k;
+    bubbles.push(b); item.lastShown = Date.now();
+    place(b, 0, 0, S);
     return b;
   }
-  function removeBubble(p, b) {
-    const i = p.bubbles.indexOf(b); if (i >= 0) p.bubbles.splice(i, 1);
-    b.el.classList.add('out'); setTimeout(() => b.el.remove(), 700);
+  function place(b, bob, r, S) {
+    for (const c of b.clones) {
+      const p = c.p;
+      const lx = p.screen === 'ALL' ? b.x * (p.w / S.w) : b.x - SEGIDX[p.screen] * S.segw;
+      const visible = lx + b.w > -8 && lx < p.w + 8;
+      if (!visible) { if (!c.hidden) { c.hidden = true; c.el.style.visibility = 'hidden'; } continue; }
+      if (c.hidden) { c.hidden = false; c.el.style.visibility = ''; }
+      c.el.style.transform = `translate3d(${lx}px,${b.y + bob}px,0) rotate(${r}deg)`;
+    }
+  }
+  function removeBubble(b) {
+    const i = bubbles.indexOf(b); if (i >= 0) bubbles.splice(i, 1);
+    for (const c of b.clones) c.el.classList.add('out');
+    setTimeout(() => b.clones.forEach(c => c.el.remove()), 700);
   }
   function show(item) {
-    for (const p of panelsFor(item.screen)) {
-      if (p.bubbles.length >= MAX) removeBubble(p, p.bubbles[0]);
-      makeBubble(p, item);
+    if (!bubblePanels.length) return;
+    if (bubbles.length >= MAX) removeBubble(bubbles[0]);
+    makeBubble(item);
+  }
+  function handleResize() {
+    const S = strip();
+    if (prevStrip && (S.w !== prevStrip.w || S.h !== prevStrip.h)) {
+      for (const b of bubbles) {
+        b.x *= S.w / prevStrip.w; b.y *= S.h / prevStrip.h;
+        const ref = (b.clones.find(c => c.p === refPanel) || b.clones[0]);
+        if (ref) { b.w = ref.el.offsetWidth; b.h = ref.el.offsetHeight; }
+      }
     }
+    prevStrip = S;
   }
   let last = performance.now();
   function frame(now) {
     const dt = Math.min(.05, (now - last) / 1000); last = now; const t = now / 1000;
-    for (const p of panels) {
-      const bs = p.bubbles;
-      for (const b of bs) { b.x += b.vx * dt; b.y += b.vy * dt; }
-      // gentle separation so bubbles drift apart instead of stacking
-      for (let i = 0; i < bs.length; i++) for (let j = i + 1; j < bs.length; j++) {
-        const a = bs[i], c = bs[j];
-        const ox = Math.min(a.x + a.w, c.x + c.w) - Math.max(a.x, c.x);
-        const oy = Math.min(a.y + a.h, c.y + c.h) - Math.max(a.y, c.y);
-        if (ox <= 0 || oy <= 0) continue;
-        const push = Math.min(ox, oy) * .06 + .2;
-        if (ox < oy) { const d = (a.x + a.w / 2) <= (c.x + c.w / 2) ? -1 : 1; a.x += d * push; c.x -= d * push; }
-        else { const d = (a.y + a.h / 2) <= (c.y + c.h / 2) ? -1 : 1; a.y += d * push; c.y -= d * push; }
-      }
-      const pad = p.h * .013;
-      for (const b of bs) {
-        if (b.x < 0) { b.x = 0; b.vx = Math.abs(b.vx); } else if (b.x + b.w > p.w) { b.x = Math.max(0, p.w - b.w); b.vx = -Math.abs(b.vx); }
-        if (b.y < pad) { b.y = pad; b.vy = Math.abs(b.vy); } else if (b.y + b.h > p.h - pad) { b.y = Math.max(pad, p.h - b.h - pad); b.vy = -Math.abs(b.vy); }
-        const bob = Math.sin(t * b.bob + b.ph) * p.h * .012;
-        const r = Math.sin(t * .9 + b.ph) * b.rot;
-        b.el.style.transform = `translate3d(${b.x}px,${b.y + bob}px,0) rotate(${r}deg)`;
-      }
+    const S = strip();
+    for (const b of bubbles) { b.x += b.vx * dt; b.y += b.vy * dt; }
+    // gentle separation so bubbles drift apart instead of stacking
+    for (let i = 0; i < bubbles.length; i++) for (let j = i + 1; j < bubbles.length; j++) {
+      const a = bubbles[i], c = bubbles[j];
+      const ox = Math.min(a.x + a.w, c.x + c.w) - Math.max(a.x, c.x);
+      const oy = Math.min(a.y + a.h, c.y + c.h) - Math.max(a.y, c.y);
+      if (ox <= 0 || oy <= 0) continue;
+      const push = Math.min(ox, oy) * .06 + .2;
+      if (ox < oy) { const d = (a.x + a.w / 2) <= (c.x + c.w / 2) ? -1 : 1; a.x += d * push; c.x -= d * push; }
+      else { const d = (a.y + a.h / 2) <= (c.y + c.h / 2) ? -1 : 1; a.y += d * push; c.y -= d * push; }
+    }
+    const pad = S.h * .013;
+    for (const b of bubbles) {
+      // bounce off the far left / far right of the whole wall, free flow across the seams
+      if (b.x < 0) { b.x = 0; b.vx = Math.abs(b.vx); } else if (b.x + b.w > S.w) { b.x = Math.max(0, S.w - b.w); b.vx = -Math.abs(b.vx); }
+      if (b.y < pad) { b.y = pad; b.vy = Math.abs(b.vy); } else if (b.y + b.h > S.h - pad) { b.y = Math.max(pad, S.h - b.h - pad); b.vy = -Math.abs(b.vy); }
+      place(b, Math.sin(t * b.bob + b.ph) * S.h * .012, Math.sin(t * .9 + b.ph) * b.rot, S);
     }
     requestAnimationFrame(frame);
   }
@@ -264,41 +295,36 @@ body.dragging #drop{display:flex}
       const live = new Set(d.ids || []);
       for (const [id, item] of allItems) if (!item.demo && !live.has(id)) {
         allItems.delete(id);
-        for (const p of panels) for (const b of [...p.bubbles]) if (b.item.id === id) removeBubble(p, b);
+        for (const b of [...bubbles]) if (b.item.id === id) removeBubble(b);
       }
       const fresh = (d.items || []).filter(i => !allItems.has(i.id)).sort((a, b) => a.ts - b.ts);
       for (const i of fresh) { allItems.set(i.id, i); lastTs = Math.max(lastTs, i.ts); }
-      if (first) {
-        // only the newest MAX per screen on first paint; the rest rotate in later
-        for (const s of ['A', 'B', 'C']) fresh.filter(i => i.screen === s).slice(-MAX).forEach(show);
-        first = false;
-      } else fresh.forEach(show);
-      setStatus('ok', `${allItems.size} confessions · ${new Date().toLocaleTimeString()}`);
+      if (first) { fresh.slice(-MAX).forEach(show); first = false; }   // newest MAX on first paint; the rest rotate in
+      else fresh.forEach(show);
+      setStatus('ok', `${allItems.size} confessions · ${bubbles.length} flying · ${new Date().toLocaleTimeString()}`);
     } catch (e) { setStatus('err', 'offline: ' + e.message); }
     setTimeout(poll, POLL);
   }
   poll();
 
   setInterval(() => {
-    for (const p of panels) {
-      const mine = [...allItems.values()].filter(i => p.screen === 'ALL' || i.screen === p.screen);
-      if (!mine.length || mine.length <= p.bubbles.length) continue;
-      const shown = new Set(p.bubbles.map(b => b.item.id));
-      const hidden = mine.filter(i => !shown.has(i.id)).sort((a, b) => (a.lastShown || 0) - (b.lastShown || 0));
-      if (!hidden.length) continue;
-      if (p.bubbles.length >= MAX) removeBubble(p, p.bubbles[0]);
-      makeBubble(p, hidden[0]);
-    }
+    const items = [...allItems.values()];
+    if (!items.length || items.length <= bubbles.length) return;
+    const shown = new Set(bubbles.map(b => b.item.id));
+    const hidden = items.filter(i => !shown.has(i.id)).sort((a, b) => (a.lastShown || 0) - (b.lastShown || 0));
+    if (!hidden.length) return;
+    if (bubbles.length >= MAX) removeBubble(bubbles[0]);
+    makeBubble(hidden[0]);
   }, ROTATE);
 
-  const DEMO = [['Dr. Nefarious', 'Replied-all to the whole company on purpose'], ['Kat', 'Ate my roommate’s leftovers and blamed the dog'], ['Big Mo', 'Told a toddler the ice cream truck only plays music when it’s out of ice cream'], ['Vee', 'Unplugged the office fridge before a long weekend'], ['Anon', 'Returned a library book 3 years late. No regrets.'], ['Jax', 'Kept the group chat on read for 11 days']];
+  const DEMO = [['Dr. Nefarious', 'Replied-all to the whole company on purpose'], ['Kat', 'Ate my roommate’s leftovers and blamed the dog'], ['Big Mo', 'Told a toddler the ice cream truck only plays music when it’s out of ice cream'], ['Vee', 'Unplugged the office fridge before a long weekend'], ['Anon', 'Returned a library book 3 years late. No regrets.'], ['Jax', 'Kept the group chat on read for 11 days'], ['Priya', 'Took credit for the intern’s idea in standup'], ['Theo', 'Hid the good scissors from my whole family'], ['Lou', 'Said “let’s circle back” and never did. Six times.']];
   let demoN = 0;
-  function demoBubble(screen) {
+  function demoBubble() {
     const d = DEMO[demoN % DEMO.length]; demoN++;
-    const item = { id: 'demo-' + demoN + '-' + Math.random().toString(36).slice(2, 6), ts: Date.now(), name: d[0], text: d[1], screen: screen || ['A', 'B', 'C'][demoN % 3], demo: true };
+    const item = { id: 'demo-' + demoN + '-' + Math.random().toString(36).slice(2, 6), ts: Date.now(), name: d[0], text: d[1], demo: true };
     allItems.set(item.id, item); show(item);
   }
-  if (Q.get('demo') === '1') for (let i = 0; i < 9; i++) demoBubble();
+  if (Q.get('demo') === '1') for (let i = 0; i < 12; i++) demoBubble();
 
   // ---------- controls ----------
   const help = document.getElementById('help');
