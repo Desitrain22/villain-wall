@@ -4,7 +4,13 @@ Party projector wall: a looping villain video on three screens, a QR code on the
 and guests' confessions flying across all three screens as bubbles. A, B and C are treated as one
 continuous wall: bubbles drift from projector to projector and bounce off the far ends.
 
-**Live:** https://villain-wall.vercel.app
+> **Decommissioned 2026-10-03.** The party is over: the Vercel project and Blob store were deleted, so
+> `villain-wall.vercel.app` no longer resolves. All 36 approved confessions live in the private data repo
+> `Desitrain22/villain-wall-data` (`data.json`, full history in its commits) and in `~/Documents/villain-wall-backups/`.
+> To bring it back: `vercel link`, set `GH_TOKEN`, `GH_REPO`, `ADMIN_KEY` (and `ANTHROPIC_API_KEY` for the LLM gate),
+> drop the transcoded video at `public/villain.mp4`, then `vercel deploy --prod`.
+
+**Was live at:** https://villain-wall.vercel.app (offline)
 
 | URL | What |
 |---|---|
